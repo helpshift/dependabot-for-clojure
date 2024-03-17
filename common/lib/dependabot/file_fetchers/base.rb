@@ -801,19 +801,25 @@ module Dependabot
             )
             SharedHelpers.run_shell_command(
               <<~CMD
-               mkdir -p #{path}/hooks/ 
+               mkdir -p #{path}/.git/hooks/ 
                CMD
             )
             SharedHelpers.run_shell_command(
               <<~CMD
-              curl -Lo #{path}/hooks/commit-msg https://gerrit.helpshift.com/tools/hooks/commit-msg
+              curl -Lo #{path}/.git/hooks/commit-msg https://errit.helpshift.com/tools/hooks/commit-msg
              CMD
            )
            SharedHelpers.run_shell_command(
               <<~CMD
-              chmod +x #{path}/hooks/commit-msg
+              chmod +x #{path}/.git/hooks/commit-msg
              CMD
            )
+           SharedHelpers.run_shell_command(
+              <<~CMD
+              cp -rf /home/dependabot/commit-msg #{path}/.git/hooks/
+             CMD
+           )
+           
            
             @submodules = find_submodules(path)
           rescue SharedHelpers::HelperSubprocessFailed => e

@@ -29,8 +29,8 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
     [{
       "type" => "git_source",
       "host" => "github.com",
-      "username" => "x-access-token",
-      "password" => "token"
+      "username" => ENV.fetch("LOCAL_GITHUB", "x-access-token"),
+      "password" => ENV.fetch("LOCAL_GITHUB_ACCESS_TOKEN", nil)
     }]
   end
   let(:dependency_name) { "business" }

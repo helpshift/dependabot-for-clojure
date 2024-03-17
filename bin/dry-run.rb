@@ -150,7 +150,7 @@ unless ENV["LOCAL_GITHUB_ACCESS_TOKEN"].to_s.strip.empty?
     {
       "type" => "git_source",
       "host" => "github.com",
-      "username" => "x-access-token",
+      "username" => ENV.fetch("LOCAL_GITHUB", "x-access-token"),
       "password" => ENV.fetch("LOCAL_GITHUB_ACCESS_TOKEN", nil)
     }
   )
@@ -807,6 +807,9 @@ dependencies.each do |dep|
     puts "Pull Request Title: #{msg.pr_name}"
     puts "--description--\n#{msg.pr_message}\n--/description--"
     puts "--commit--\n#{msg.commit_message}\n--/commit--"
+    system("git config --global user.email \"shivam.sharma@helpshift.com\"")
+    system("git config --global user.name \"shivam sharma\"")
+    system("cp -rf hk.sh tmp/voyager/")
      Dir.chdir($repo_contents_path) do
        Dependabot::SharedHelpers.run_shell_command(
          <<~CMD
@@ -814,6 +817,16 @@ dependencies.each do |dep|
              CMD
        )
        system("git commit -m '#{msg.commit_message}'")
+       Dependabot::SharedHelpers.run_shell_command(
+
+        #  "git rebase -f HEAD~1 feature/dependabot --exec 'git commit --amend --no-edit'"
+        "git commit --amend --no-edit"
+       )
+      # Dependabot::SharedHelpers.run_shell_command(
+      #    <<~CMD
+      #    bash hk.sh
+      #    CMD
+      #    )
        $files.map!{ |x| x.name == "project.clj" ? updated_files.first : x}
      end
    end
@@ -826,15 +839,17 @@ rescue StandardError => e
        "#{error_details.fetch(:"error-detail")}"
 end
 
-Dependabot::SharedHelpers.run_shell_command(
-         <<~CMD
-         cp -rf /home/dependabot/rfc #{$repo_contents_path}
-             CMD
-       )
-puts "running rfc"
+# Dependabot::SharedHelpers.run_shell_command(
+#          <<~CMD
+#          cp -rf /home/dependabot/rfc #{$repo_contents_path}
+#              CMD
+#        )
+puts "pushing the changes"
 #push the commits to gerrit via rfc
 Dir.chdir($repo_contents_path) do
-  system("/home/dependabot/rfc feature/dependabot")
+
+  # system 'git', 'rebase', '-f', 'HEAD~1', 'feature/dependabot', '--exec', 'git commit --amend --no-edit'
+  # system("/home/dependabot/rfc feature/dependabot")
  system("git push origin HEAD:refs/for/feature/dependabot")
 end
 
