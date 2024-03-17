@@ -14,6 +14,10 @@ RUN apt-get update \
 ENV PATH="$PATH:/usr/local/lein/bin" \
   LEIN_SNAPSHOTS_IN_RELEASE="yes"
 
+ENV DEPENDABOT_NATIVE_HELPERS_PATH="/opt"
+COPY --chown=dependabot:dependabot lein/helpers /opt/lein/helpers
+RUN bash /opt/lein/helpers/build
+
 USER dependabot
 COPY --chown=dependabot:dependabot lein $DEPENDABOT_HOME/lein
 COPY --chown=dependabot:dependabot common $DEPENDABOT_HOME/common
