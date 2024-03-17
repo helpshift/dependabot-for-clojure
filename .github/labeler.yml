@@ -69,3 +69,7 @@
 "L: swift":
 - changed-files:
   - any-glob-to-any-file: swift/**
+
+"L: lein":
+- changed-files:
+ - any-glob-to-any-file: lein/**

@@ -50,6 +50,7 @@ jobs:
           - { name: swift, ecosystem: swift }
           - { name: devcontainers, ecosystem: devcontainers }
           - { name: terraform, ecosystem: terraform }
+          - { name: lein, ecosystem: lein }
     env:
       COMMIT_SHA: ${{ github.sha }}
       NAME: ${{ matrix.suite.name }}

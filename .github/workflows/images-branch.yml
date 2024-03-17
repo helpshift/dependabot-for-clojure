@@ -69,6 +69,7 @@ jobs:
           - { name: swift, ecosystem: swift }
           - { name: devcontainers, ecosystem: devcontainers }
           - { name: terraform, ecosystem: terraform }
+          - { name: lein, ecosystem: lein }
     permissions:
       contents: read
       packages: write

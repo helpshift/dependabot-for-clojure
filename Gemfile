@@ -22,6 +22,7 @@ gem "dependabot-python", path: "python"
 gem "dependabot-silent", path: "silent"
 gem "dependabot-swift", path: "swift"
 gem "dependabot-terraform", path: "terraform"
+gem "dependabot-lein", path: "lein"
 
 # Sorbet
 gem "sorbet", "0.5.11288", group: :development

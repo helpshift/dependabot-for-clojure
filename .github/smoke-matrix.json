@@ -93,5 +93,10 @@
     "core": "terraform",
     "test": "terraform",
     "ecosystem": "terraform"
+  },
+  {
+    "core": "lein",
+    "test": "lein",
+    "ecosystem": "lein"
   }
 ]

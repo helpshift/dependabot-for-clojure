@@ -43,7 +43,8 @@ Sentry.init do |config|
     pub|
     silent|
     swift|
-    devcontainers
+    devcontainers|
+    lein
   )}x
 
   config.before_send = ->(event, hint) { Dependabot::Sentry.process_chain(event, hint) }
@@ -74,3 +75,4 @@ require "dependabot/pub"
 require "dependabot/silent"
 require "dependabot/swift"
 require "dependabot/devcontainers"
+require "dependabot/lein"

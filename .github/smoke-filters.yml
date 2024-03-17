@@ -59,3 +59,7 @@ swift:
 terraform:
   - *common
   - 'terraform/**'
+
+lein:
+  - *common
+  - 'lein/**'

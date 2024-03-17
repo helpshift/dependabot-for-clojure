@@ -22,6 +22,7 @@ gem "dependabot-python", path: "../python"
 gem "dependabot-silent", path: "../silent"
 gem "dependabot-swift", path: "../swift"
 gem "dependabot-terraform", path: "../terraform"
+gem "dependabot-lein", path: "../lein"
 
 gem "http", "~> 5.1"
 gem "octokit", "6.1.1"
