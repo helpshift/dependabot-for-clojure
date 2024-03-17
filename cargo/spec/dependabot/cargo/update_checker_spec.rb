@@ -1,9 +1,12 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
-require "dependabot/dependency"
-require "dependabot/dependency_file"
+
 require "dependabot/cargo/update_checker"
+require "dependabot/dependency_file"
+require "dependabot/dependency"
+require "dependabot/requirements_update_strategy"
 require_common_spec "update_checkers/shared_examples_for_update_checkers"
 
 RSpec.describe Dependabot::Cargo::UpdateChecker do
@@ -23,13 +26,15 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
       credentials: credentials,
       ignored_versions: ignored_versions,
       raise_on_ignored: raise_on_ignored,
-      security_advisories: security_advisories
+      security_advisories: security_advisories,
+      requirements_update_strategy: requirements_update_strategy
     )
   end
 
   let(:ignored_versions) { [] }
   let(:raise_on_ignored) { false }
   let(:security_advisories) { [] }
+  let(:requirements_update_strategy) { nil }
   let(:credentials) do
     [{
       "type" => "git_source",
@@ -110,9 +115,9 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
         git_header = {
           "content-type" => "application/x-git-upload-pack-advertisement"
         }
-        stub_request(:get, git_url + "/info/refs?service=git-upload-pack").
-          with(basic_auth: %w(x-access-token token)).
-          to_return(
+        stub_request(:get, git_url + "/info/refs?service=git-upload-pack")
+          .with(basic_auth: %w(x-access-token token))
+          .to_return(
             status: 200,
             body: fixture("git", "upload_packs", "utf8-ranges"),
             headers: git_header
@@ -215,11 +220,11 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
     subject { checker.latest_resolvable_version }
 
     it "delegates to VersionResolver" do
-      expect(Dependabot::Cargo::UpdateChecker::VersionResolver).
-        to receive(:new).
-        and_call_original
-      expect(checker.latest_resolvable_version).
-        to eq(Gem::Version.new("0.1.40"))
+      expect(Dependabot::Cargo::UpdateChecker::VersionResolver)
+        .to receive(:new)
+        .and_call_original
+      expect(checker.latest_resolvable_version)
+        .to eq(Gem::Version.new("0.1.40"))
     end
 
     context "when the latest version is being ignored" do
@@ -241,9 +246,9 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
         git_header = {
           "content-type" => "application/x-git-upload-pack-advertisement"
         }
-        stub_request(:get, git_url + "/info/refs?service=git-upload-pack").
-          with(basic_auth: %w(x-access-token token)).
-          to_return(
+        stub_request(:get, git_url + "/info/refs?service=git-upload-pack")
+          .with(basic_auth: %w(x-access-token token))
+          .to_return(
             status: 200,
             body: fixture("git", "upload_packs", "utf8-ranges"),
             headers: git_header
@@ -271,7 +276,7 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
         }
       end
 
-      it { is_expected.to eq("8d38a931b7e34f9da339c058cbbca6ded624ea58") }
+      it { is_expected.to eq("be9b8dfcaf449453cbf83ac85260ee80323f4f77") }
 
       context "with a tag" do
         let(:manifest_fixture_name) { "git_dependency_with_tag" }
@@ -302,7 +307,7 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
           }
         end
 
-        it { is_expected.to eq("8d38a931b7e34f9da339c058cbbca6ded624ea58") }
+        it { is_expected.to eq("be9b8dfcaf449453cbf83ac85260ee80323f4f77") }
       end
     end
 
@@ -385,16 +390,16 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
         git_header = {
           "content-type" => "application/x-git-upload-pack-advertisement"
         }
-        stub_request(:get, git_url + "/info/refs?service=git-upload-pack").
-          with(basic_auth: %w(x-access-token token)).
-          to_return(
+        stub_request(:get, git_url + "/info/refs?service=git-upload-pack")
+          .with(basic_auth: %w(x-access-token token))
+          .to_return(
             status: 200,
             body: fixture("git", "upload_packs", "utf8-ranges"),
             headers: git_header
           )
       end
 
-      it { is_expected.to eq("8d38a931b7e34f9da339c058cbbca6ded624ea58") }
+      it { is_expected.to eq("be9b8dfcaf449453cbf83ac85260ee80323f4f77") }
 
       context "with a tag" do
         let(:manifest_fixture_name) { "git_dependency_with_tag" }
@@ -429,17 +434,17 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
 
   describe "#updated_requirements" do
     it "delegates to the RequirementsUpdater" do
-      expect(described_class::RequirementsUpdater).
-        to receive(:new).
-        with(
+      expect(described_class::RequirementsUpdater)
+        .to receive(:new)
+        .with(
           requirements: requirements,
           updated_source: nil,
           target_version: "0.1.40",
-          update_strategy: :bump_versions
-        ).
-        and_call_original
-      expect(checker.updated_requirements).
-        to eq(
+          update_strategy: Dependabot::RequirementsUpdateStrategy::BumpVersions
+        )
+        .and_call_original
+      expect(checker.updated_requirements)
+        .to eq(
           [{
             file: "Cargo.toml",
             requirement: "0.1.40",
@@ -462,17 +467,17 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
       end
 
       it "delegates to the RequirementsUpdater" do
-        expect(described_class::RequirementsUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::RequirementsUpdater)
+          .to receive(:new)
+          .with(
             requirements: requirements,
             updated_source: nil,
             target_version: "0.1.39",
-            update_strategy: :bump_versions
-          ).
-          and_call_original
-        expect(checker.updated_requirements).
-          to eq(
+            update_strategy: Dependabot::RequirementsUpdateStrategy::BumpVersions
+          )
+          .and_call_original
+        expect(checker.updated_requirements)
+          .to eq(
             [{
               file: "Cargo.toml",
               requirement: "0.1.39",
@@ -481,6 +486,18 @@ RSpec.describe Dependabot::Cargo::UpdateChecker do
             }]
           )
       end
+    end
+  end
+
+  context "#requirements_unlocked_or_can_be?" do
+    subject { checker.requirements_unlocked_or_can_be? }
+
+    it { is_expected.to eq(true) }
+
+    context "with the lockfile-only requirements update strategy set" do
+      let(:requirements_update_strategy) { Dependabot::RequirementsUpdateStrategy::LockfileOnly }
+
+      it { is_expected.to eq(false) }
     end
   end
 end

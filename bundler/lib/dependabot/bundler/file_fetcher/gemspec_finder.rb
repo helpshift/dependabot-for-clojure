@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "pathname"
@@ -35,8 +36,8 @@ module Dependabot
 
             unless path_node.type == :str
               path = gemfile.path
-              msg = "Dependabot only supports uninterpolated string arguments "\
-                    "to gemspec. Got "\
+              msg = "Dependabot only supports uninterpolated string arguments " \
+                    "to gemspec. Got " \
                     "`#{path_node.loc.expression.source}`"
               raise Dependabot::DependencyFileNotParseable.new(path, msg)
             end
@@ -78,8 +79,8 @@ module Dependabot
           kwargs_node = node.children.last
 
           path_hash_pair =
-            kwargs_node.children.
-            find { |hash_pair| key_from_hash_pair(hash_pair) == :path }
+            kwargs_node.children
+                       .find { |hash_pair| key_from_hash_pair(hash_pair) == :path }
 
           return unless path_hash_pair
 

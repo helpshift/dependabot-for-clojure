@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -99,7 +100,40 @@ RSpec.describe Dependabot::Bundler::FileUpdater::RubyRequirementSetter do
         let(:content) do
           bundler_project_dependency_file("gemfile", filename: "Gemfile").content
         end
-        it { is_expected.to include("ruby '3.0.1'\n") }
+        it { is_expected.to include("ruby '3.0.6'\n") }
+        it { is_expected.to include(%(gem "business", "~> 1.4.0")) }
+      end
+
+      context "when requiring ruby 3.1" do
+        let(:gemspec) do
+          bundler_project_dependency_file("gemfile_require_ruby_3_1", filename: "example.gemspec")
+        end
+        let(:content) do
+          bundler_project_dependency_file("gemfile", filename: "Gemfile").content
+        end
+        it { is_expected.to include("ruby '3.1.4'\n") }
+        it { is_expected.to include(%(gem "business", "~> 1.4.0")) }
+      end
+
+      context "when requiring ruby 3.2" do
+        let(:gemspec) do
+          bundler_project_dependency_file("gemfile_require_ruby_3_2", filename: "example.gemspec")
+        end
+        let(:content) do
+          bundler_project_dependency_file("gemfile", filename: "Gemfile").content
+        end
+        it { is_expected.to include("ruby '3.2.2'\n") }
+        it { is_expected.to include(%(gem "business", "~> 1.4.0")) }
+      end
+
+      context "when requiring ruby 3.3" do
+        let(:gemspec) do
+          bundler_project_dependency_file("gemfile_require_ruby_3_3", filename: "example.gemspec")
+        end
+        let(:content) do
+          bundler_project_dependency_file("gemfile", filename: "Gemfile").content
+        end
+        it { is_expected.to include("ruby '3.3.0'\n") }
         it { is_expected.to include(%(gem "business", "~> 1.4.0")) }
       end
 
@@ -127,9 +161,9 @@ RSpec.describe Dependabot::Bundler::FileUpdater::RubyRequirementSetter do
 
         context "within a source block" do
           let(:content) do
-            "source 'https://example.com' do\n"\
-            "  ruby \"2.2.0\"\n"\
-            "end"
+            "source 'https://example.com' do\n" \
+              "  ruby \"2.2.0\"\n" \
+              "end"
           end
           it { is_expected.to include("ruby '1.9.3'\n") }
           it { is_expected.to_not include(%(ruby "2.2.0")) }

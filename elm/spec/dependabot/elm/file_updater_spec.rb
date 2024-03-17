@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -57,7 +58,7 @@ RSpec.describe Dependabot::Elm::FileUpdater do
   end
   let(:tmp_path) { Dependabot::Utils::BUMP_TMP_DIR_PATH }
 
-  before { Dir.mkdir(tmp_path) unless Dir.exist?(tmp_path) }
+  before { FileUtils.mkdir_p(tmp_path) }
 
   describe "#updated_dependency_files" do
     subject(:updated_files) { updater.updated_dependency_files }
@@ -79,10 +80,10 @@ RSpec.describe Dependabot::Elm::FileUpdater do
       end
 
       it "updates the right dependency" do
-        expect(updated_elm_json_file_content).
-          to include(%("elm/regex": "1.1.0"))
-        expect(updated_elm_json_file_content).
-          to include(%("elm/html": "1.0.0"))
+        expect(updated_elm_json_file_content)
+          .to include(%("elm/regex": "1.1.0"))
+        expect(updated_elm_json_file_content)
+          .to include(%("elm/html": "1.0.0"))
       end
     end
   end

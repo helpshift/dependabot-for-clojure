@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -5,6 +6,7 @@ require "dependabot/dependency"
 require "dependabot/dependency_file"
 require "dependabot/source"
 require "dependabot/github_actions/file_updater"
+require "dependabot/github_actions/version"
 require_common_spec "file_updaters/shared_examples_for_file_updaters"
 
 RSpec.describe Dependabot::GithubActions::FileUpdater do
@@ -116,7 +118,7 @@ RSpec.describe Dependabot::GithubActions::FileUpdater do
                 ref: "v1.1.0",
                 branch: nil
               },
-              metadata: { declaration_string: "actions/aws/ec2@master" }
+              metadata: { declaration_string: "actions/aws/ec2@v1.0.0" }
             }, {
               requirement: nil,
               groups: [],
@@ -127,7 +129,7 @@ RSpec.describe Dependabot::GithubActions::FileUpdater do
                 ref: "v1.1.0",
                 branch: nil
               },
-              metadata: { declaration_string: "actions/aws@master" }
+              metadata: { declaration_string: "actions/aws@v1.0.0" }
             }],
             previous_requirements: [{
               requirement: nil,
@@ -136,10 +138,10 @@ RSpec.describe Dependabot::GithubActions::FileUpdater do
               source: {
                 type: "git",
                 url: "https://github.com/actions/aws",
-                ref: "master",
+                ref: "v1.0.0",
                 branch: nil
               },
-              metadata: { declaration_string: "actions/aws/ec2@master" }
+              metadata: { declaration_string: "actions/aws/ec2@v1.0.0" }
             }, {
               requirement: nil,
               groups: [],
@@ -147,10 +149,10 @@ RSpec.describe Dependabot::GithubActions::FileUpdater do
               source: {
                 type: "git",
                 url: "https://github.com/actions/aws",
-                ref: "master",
+                ref: "v1.0.0",
                 branch: nil
               },
-              metadata: { declaration_string: "actions/aws@master" }
+              metadata: { declaration_string: "actions/aws@v1.0.0" }
             }],
             package_manager: "github_actions"
           )
@@ -291,6 +293,130 @@ RSpec.describe Dependabot::GithubActions::FileUpdater do
           expect(subject.content).to match(%r{actions\/cache@v2$})
           expect(subject.content).not_to include "actions/cache@v1.1.2\n"
           expect(subject.content).not_to include "actions/cache@v2.1.2\n"
+        end
+      end
+
+      context "with pinned SHA hash and version in comment" do
+        let(:service_pack_url) do
+          "https://github.com/actions/checkout.git/info/refs" \
+            "?service=git-upload-pack"
+        end
+        before do
+          stub_request(:get, service_pack_url)
+            .to_return(
+              status: 200,
+              body: fixture("git", "upload_packs", "checkout"),
+              headers: {
+                "content-type" => "application/x-git-upload-pack-advertisement"
+              }
+            )
+        end
+
+        let(:workflow_file_body) do
+          fixture("workflow_files", "pinned_sources_version_comments.yml")
+        end
+        let(:previous_version) { "2.1.0" }
+        let(:dependency) do
+          Dependabot::Dependency.new(
+            name: "actions/checkout",
+            version: "2.2.0",
+            package_manager: "github_actions",
+            previous_version: previous_version,
+            previous_requirements: [{
+              requirement: nil,
+              groups: [],
+              file: ".github/workflows/workflow.yml",
+              source: {
+                type: "git",
+                url: "https://github.com/actions/checkout",
+                ref: "01aecccf739ca6ff86c0539fbc67a7a5007bbc81",
+                branch: nil
+              },
+              metadata: { declaration_string: "actions/checkout@01aecccf739ca6ff86c0539fbc67a7a5007bbc81" }
+            }, {
+              requirement: nil,
+              groups: [],
+              file: ".github/workflows/workflow.yml",
+              source: {
+                type: "git",
+                url: "https://github.com/actions/checkout",
+                ref: "v#{previous_version}",
+                branch: nil
+              },
+              metadata: { declaration_string: "actions/checkout@v#{previous_version}" }
+            }],
+            requirements: [{
+              requirement: nil,
+              groups: [],
+              file: ".github/workflows/workflow.yml",
+              source: {
+                type: "git",
+                url: "https://github.com/actions/checkout",
+                ref: "aabbfeb2ce60b5bd82389903509092c4648a9713",
+                branch: nil
+              },
+              metadata: { declaration_string: "actions/checkout@aabbfeb2ce60b5bd82389903509092c4648a9713" }
+            }, {
+              requirement: nil,
+              groups: [],
+              file: ".github/workflows/workflow.yml",
+              source: {
+                type: "git",
+                url: "https://github.com/actions/checkout",
+                ref: "v2.2.0",
+                branch: nil
+              },
+              metadata: { declaration_string: "actions/checkout@v2.2.0" }
+            }]
+          )
+        end
+
+        it "updates SHA version" do
+          old_sha = dependency.previous_requirements.first.dig(:source, :ref)
+          expect(subject.content).to include "#{dependency.name}@#{dependency.requirements.first.dig(:source, :ref)}"
+          expect(subject.content).not_to match(/#{old_sha}['"]?\s+#.*#{dependency.previous_version}/)
+        end
+        it "updates version comment" do
+          new_sha = dependency.requirements.first.dig(:source, :ref)
+          expect(subject.content).not_to match(/@#{new_sha}['"]?\s+#.*#{dependency.previous_version}\s*$/)
+
+          expect(subject.content).to include "# v#{dependency.version}"
+          expect(subject.content).to include "# #{dependency.version}"
+          expect(subject.content).to include "# @v#{dependency.version}"
+          expect(subject.content).to include "# pin @v#{dependency.version}"
+          expect(subject.content).to include "# tag=v#{dependency.version}"
+        end
+        context "when previous version is older than comment" do
+          let(:previous_version) { "2.0.0" }
+
+          it "updates version comment" do
+            expect(subject.content).to include "# v#{dependency.version}"
+            expect(subject.content).to include "# #{dependency.version}"
+            expect(subject.content).to include "# @v#{dependency.version}"
+            expect(subject.content).to include "# pin @v#{dependency.version}"
+            expect(subject.content).to include "# tag=v#{dependency.version}"
+          end
+        end
+        it "doesn't update version comments when @ref is not a SHA" do
+          old_version = dependency.previous_requirements[1].dig(:source, :ref)
+          expect(subject.content).not_to match(/@#{old_version}\s+#.*#{dependency.version}/)
+        end
+        it "doesn't update version comments in the middle of sentences" do
+          # rubocop:disable Layout/LineLength
+          expect(subject.content).to include "Versions older than v#{dependency.previous_version} have a security vulnerability"
+          expect(subject.content).not_to include "Versions older than v#{dependency.version} have a security vulnerability"
+          # rubocop:enable Layout/LineLength
+        end
+
+        context "but the previous SHA is not tagged" do
+          before do
+            dependency.previous_requirements.first[:source][:ref] = "85b1f35505da871133b65f059e96210c65650a8b"
+          end
+
+          it "updates SHA version but not the comment" do
+            new_sha = dependency.requirements.first.dig(:source, :ref)
+            expect(subject.content).to match(/#{new_sha}['"]?\s+#.*#{dependency.previous_version}/)
+          end
         end
       end
     end

@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -72,28 +73,28 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
       end
       let(:repo_api_url) { "https://api.github.com/repos/#{source.repo}" }
       before do
-        stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-          to_return(status: 200,
-                    body: fixture("github", labels_fixture_name),
-                    headers: json_header)
+        stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+          .to_return(status: 200,
+                     body: fixture("github", labels_fixture_name),
+                     headers: json_header)
       end
       let(:labels_fixture_name) { "labels_with_dependencies.json" }
 
       context "when the 'dependencies' label doesn't yet exist" do
         let(:labels_fixture_name) { "labels_without_dependencies.json" }
         before do
-          stub_request(:post, "#{repo_api_url}/labels").
-            to_return(status: 201,
-                      body: fixture("github", "create_label.json"),
-                      headers: json_header)
+          stub_request(:post, "#{repo_api_url}/labels")
+            .to_return(status: 201,
+                       body: fixture("github", "create_label.json"),
+                       headers: json_header)
         end
 
         it "creates a 'dependencies' label" do
           labeler.create_default_labels_if_required
 
-          expect(WebMock).
-            to have_requested(:post, "#{repo_api_url}/labels").
-            with(
+          expect(WebMock)
+            .to have_requested(:post, "#{repo_api_url}/labels")
+            .with(
               body: {
                 name: "dependencies",
                 color: "0366d6",
@@ -105,15 +106,15 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
 
         context "when there's a race and we lose" do
           before do
-            stub_request(:post, "#{repo_api_url}/labels").
-              to_return(status: 422,
-                        body: fixture("github", "label_already_exists.json"),
-                        headers: json_header)
+            stub_request(:post, "#{repo_api_url}/labels")
+              .to_return(status: 422,
+                         body: fixture("github", "label_already_exists.json"),
+                         headers: json_header)
           end
 
           it "quietly ignores losing the race" do
-            expect { labeler.create_default_labels_if_required }.
-              to_not raise_error
+            expect { labeler.create_default_labels_if_required }
+              .to_not raise_error
             expect(labeler.labels_for_pr).to include("dependencies")
           end
         end
@@ -125,8 +126,8 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
         it "does not create a 'dependencies' label" do
           labeler.create_default_labels_if_required
 
-          expect(WebMock).
-            to_not have_requested(:post, "#{repo_api_url}/labels")
+          expect(WebMock)
+            .to_not have_requested(:post, "#{repo_api_url}/labels")
         end
 
         context "that is only present after paginating" do
@@ -140,14 +141,14 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           end
 
           before do
-            stub_request(:get, repo_labels_url).
-              to_return(
+            stub_request(:get, repo_labels_url)
+              .to_return(
                 status: 200,
                 body: fixture("github", "labels_without_dependencies.json"),
                 headers: links_header
               )
-            stub_request(:get, repo_labels_url + "&page=2").
-              to_return(
+            stub_request(:get, repo_labels_url + "&page=2")
+              .to_return(
                 status: 200,
                 body: fixture("github", "labels_with_custom.json"),
                 headers: json_header
@@ -157,16 +158,16 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "does not create a 'dependencies' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(WebMock)
+              .to_not have_requested(:post, "#{repo_api_url}/labels")
           end
         end
 
         context "that should be ignored" do
           let(:labels_fixture_name) { "labels_with_custom_ignored.json" }
           before do
-            stub_request(:post, "#{repo_api_url}/labels").
-              to_return(
+            stub_request(:post, "#{repo_api_url}/labels")
+              .to_return(
                 status: 201,
                 body: fixture("github", "create_label.json"),
                 headers: json_header
@@ -176,9 +177,9 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "creates a 'dependencies' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to have_requested(:post, "#{repo_api_url}/labels").
-              with(
+            expect(WebMock)
+              .to have_requested(:post, "#{repo_api_url}/labels")
+              .with(
                 body: {
                   name: "dependencies",
                   color: "0366d6",
@@ -196,18 +197,18 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
         context "when the 'ruby' label doesn't yet exist" do
           let(:labels_fixture_name) { "labels_with_dependencies.json" }
           before do
-            stub_request(:post, "#{repo_api_url}/labels").
-              to_return(status: 201,
-                        body: fixture("github", "create_label.json"),
-                        headers: json_header)
+            stub_request(:post, "#{repo_api_url}/labels")
+              .to_return(status: 201,
+                         body: fixture("github", "create_label.json"),
+                         headers: json_header)
           end
 
           it "creates a 'ruby' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to have_requested(:post, "#{repo_api_url}/labels").
-              with(
+            expect(WebMock)
+              .to have_requested(:post, "#{repo_api_url}/labels")
+              .with(
                 body: {
                   name: "ruby",
                   color: "ce2d2d",
@@ -224,8 +225,41 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "does not create a 'ruby' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(WebMock)
+              .to_not have_requested(:post, "#{repo_api_url}/labels")
+          end
+        end
+
+        context "when the 'github_actions' label doesn't yet exist" do
+          before do
+            allow(described_class).to receive(:label_details_for_package_manager)
+              .with("github_actions")
+              .and_return({
+                colour: "000000",
+                name: "github_actions",
+                description: "Pull requests that update GitHub Actions code"
+              })
+            allow(dependency).to receive(:package_manager).and_return("github_actions")
+
+            stub_request(:get, "https://api.github.com/repos/#{source.repo}/labels?per_page=100")
+              .to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: JSON.generate([]))
+            stub_request(:post, "https://api.github.com/repos/#{source.repo}/labels")
+              .to_return(
+                status: 201,
+                headers: { "Content-Type" => "application/json" },
+                body: JSON.generate({ id: 1, name: "github_actions", color: "000000" })
+              )
+          end
+
+          it "creates a label" do
+            labeler.create_default_labels_if_required
+
+            expect(WebMock).to have_requested(:post, "https://api.github.com/repos/#{source.repo}/labels")
+              .with(body: {
+                name: "github_actions",
+                color: "000000",
+                description: "Pull requests that update GitHub Actions code"
+              })
           end
         end
       end
@@ -244,8 +278,8 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "does not create a 'ruby' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(WebMock)
+              .to_not have_requested(:post, "#{repo_api_url}/labels")
           end
         end
 
@@ -255,8 +289,8 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "does not create any labels" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(WebMock)
+              .to_not have_requested(:post, "#{repo_api_url}/labels")
           end
         end
       end
@@ -266,22 +300,22 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
 
         context "when the 'security' label doesn't yet exist" do
           before do
-            stub_request(:post, "#{repo_api_url}/labels").
-              to_return(status: 201,
-                        body: fixture("github", "create_label.json"),
-                        headers: json_header)
+            stub_request(:post, "#{repo_api_url}/labels")
+              .to_return(status: 201,
+                         body: fixture("github", "create_label.json"),
+                         headers: json_header)
           end
 
           it "creates a 'security' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to have_requested(:post, "#{repo_api_url}/labels").
-              with(
+            expect(WebMock)
+              .to have_requested(:post, "#{repo_api_url}/labels")
+              .with(
                 body: {
                   name: "security",
                   color: "ee0701",
-                  description: "Pull requests that address a security "\
+                  description: "Pull requests that address a security " \
                                "vulnerability"
                 }
               )
@@ -295,8 +329,42 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "does not creates a 'security' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(WebMock)
+              .to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(labeler.labels_for_pr).to include("security")
+          end
+        end
+      end
+    end
+
+    context "with Azure details" do
+      let(:source) do
+        Dependabot::Source.new(provider: "azure", repo: "gocardless/bump")
+      end
+
+      context "when the 'dependencies' label doesn't yet exist" do
+        it "creates a 'dependencies' label" do
+          labeler.create_default_labels_if_required
+
+          expect(labeler.labels_for_pr).to include("dependencies")
+        end
+      end
+
+      context "for an update that fixes a security vulnerability" do
+        let(:includes_security_fixes) { true }
+
+        context "when the 'security' label doesn't yet exist" do
+          it "creates a 'security' label" do
+            labeler.create_default_labels_if_required
+
+            expect(labeler.labels_for_pr).to include("security")
+          end
+        end
+
+        context "when a 'security' label already exist" do
+          it "does not creates a 'security' label" do
+            labeler.create_default_labels_if_required
+
             expect(labeler.labels_for_pr).to include("security")
           end
         end
@@ -311,33 +379,33 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
         "https://gitlab.com/api/v4/projects/#{CGI.escape(source.repo)}"
       end
       before do
-        stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-          to_return(status: 200,
-                    body: fixture("gitlab", "labels_with_dependencies.json"),
-                    headers: json_header)
+        stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+          .to_return(status: 200,
+                     body: fixture("gitlab", "labels_with_dependencies.json"),
+                     headers: json_header)
       end
 
       context "when the 'dependencies' label doesn't yet exist" do
         before do
-          stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-            to_return(
+          stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+            .to_return(
               status: 200,
               body: fixture("gitlab", "labels_without_dependencies.json"),
               headers: json_header
             )
-          stub_request(:post, "#{repo_api_url}/labels").
-            to_return(status: 201,
-                      body: fixture("gitlab", "label.json"),
-                      headers: json_header)
+          stub_request(:post, "#{repo_api_url}/labels")
+            .to_return(status: 201,
+                       body: fixture("gitlab", "label.json"),
+                       headers: json_header)
         end
 
         it "creates a 'dependencies' label" do
           labeler.create_default_labels_if_required
 
-          expect(WebMock).
-            to have_requested(:post, "#{repo_api_url}/labels").
-            with(
-              body: "description=Pull%20requests%20that%20update%20a"\
+          expect(WebMock)
+            .to have_requested(:post, "#{repo_api_url}/labels")
+            .with(
+              body: "description=Pull%20requests%20that%20update%20a" \
                     "%20dependency%20file&name=dependencies&color=%230366d6"
             )
           expect(labeler.labels_for_pr).to include("dependencies")
@@ -346,17 +414,17 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
 
       context "when there is a custom dependencies label" do
         before do
-          stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-            to_return(status: 200,
-                      body: fixture("gitlab", "labels_with_custom.json"),
-                      headers: json_header)
+          stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+            .to_return(status: 200,
+                       body: fixture("gitlab", "labels_with_custom.json"),
+                       headers: json_header)
         end
 
         it "does not create a 'dependencies' label" do
           labeler.create_default_labels_if_required
 
-          expect(WebMock).
-            to_not have_requested(:post, "#{repo_api_url}/labels")
+          expect(WebMock)
+            .to_not have_requested(:post, "#{repo_api_url}/labels")
         end
       end
 
@@ -366,8 +434,8 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
         it "does not create a 'dependencies' label" do
           labeler.create_default_labels_if_required
 
-          expect(WebMock).
-            to_not have_requested(:post, "#{repo_api_url}/labels")
+          expect(WebMock)
+            .to_not have_requested(:post, "#{repo_api_url}/labels")
         end
 
         context "that doesn't exist" do
@@ -376,8 +444,8 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "does not create any labels" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(WebMock)
+              .to_not have_requested(:post, "#{repo_api_url}/labels")
           end
         end
       end
@@ -387,20 +455,20 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
 
         context "when the 'security' label doesn't yet exist" do
           before do
-            stub_request(:post, "#{repo_api_url}/labels").
-              to_return(status: 201,
-                        body: fixture("gitlab", "label.json"),
-                        headers: json_header)
+            stub_request(:post, "#{repo_api_url}/labels")
+              .to_return(status: 201,
+                         body: fixture("gitlab", "label.json"),
+                         headers: json_header)
           end
 
           it "creates a 'security' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to have_requested(:post, "#{repo_api_url}/labels").
-              with(
-                body: "description=Pull%20requests%20that%20address%20a"\
-                    "%20security%20vulnerability&name=security&color=%23ee0701"
+            expect(WebMock)
+              .to have_requested(:post, "#{repo_api_url}/labels")
+              .with(
+                body: "description=Pull%20requests%20that%20address%20a" \
+                      "%20security%20vulnerability&name=security&color=%23ee0701"
               )
             expect(labeler.labels_for_pr).to include("security")
           end
@@ -408,17 +476,17 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
 
         context "when a 'security' label already exist" do
           before do
-            stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-              to_return(status: 200,
-                        body: fixture("gitlab", "labels_with_security.json"),
-                        headers: json_header)
+            stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+              .to_return(status: 200,
+                         body: fixture("gitlab", "labels_with_security.json"),
+                         headers: json_header)
           end
 
           it "does not creates a 'security' label" do
             labeler.create_default_labels_if_required
 
-            expect(WebMock).
-              to_not have_requested(:post, "#{repo_api_url}/labels")
+            expect(WebMock)
+              .to_not have_requested(:post, "#{repo_api_url}/labels")
             expect(labeler.labels_for_pr).to include("security")
           end
         end
@@ -435,10 +503,10 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
       end
       let(:repo_api_url) { "https://api.github.com/repos/#{source.repo}" }
       before do
-        stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-          to_return(status: 200,
-                    body: fixture("github", labels_fixture_name),
-                    headers: json_header)
+        stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+          .to_return(status: 200,
+                     body: fixture("github", labels_fixture_name),
+                     headers: json_header)
       end
       let(:labels_fixture_name) { "labels_with_dependencies.json" }
 
@@ -543,7 +611,7 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
             end
           end
 
-          context "for a patch release when both have build identifers" do
+          context "for a patch release when both have build identifiers" do
             let(:previous_version) { "1.4.0+10" }
             let(:version) { "1.4.1+9" }
             it { is_expected.to include("patch") }
@@ -559,7 +627,7 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
             it { is_expected.to include("minor") }
           end
 
-          context "for a minor release with build idenfitier" do
+          context "for a minor release with build identifier" do
             let(:version) { "1.5.1+1" }
             it { is_expected.to include("minor") }
           end
@@ -646,6 +714,41 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
       end
     end
 
+    context "with Azure details" do
+      let(:source) do
+        Dependabot::Source.new(provider: "azure", repo: "gocardless/bump")
+      end
+
+      context "when a 'dependencies' label exists" do
+        it { is_expected.to eq(["dependencies"]) }
+
+        context "for a security fix" do
+          let(:includes_security_fixes) { true }
+
+          it { is_expected.to eq(%w(dependencies security)) }
+        end
+      end
+
+      context "when a custom dependencies label exists" do
+        it { is_expected.to eq(["dependencies"]) }
+      end
+
+      context "when asking for custom labels" do
+        let(:custom_labels) { ["critical"] }
+        it { is_expected.to eq(["critical"]) }
+
+        context "that don't exist" do
+          let(:custom_labels) { ["non-existent"] }
+          it { is_expected.to eq(["non-existent"]) }
+        end
+
+        context "when only one doesn't exist" do
+          let(:custom_labels) { %w(critical non-existent) }
+          it { is_expected.to eq(%w(critical non-existent)) }
+        end
+      end
+    end
+
     context "with GitLab details" do
       let(:source) do
         Dependabot::Source.new(provider: "gitlab", repo: "gocardless/bump")
@@ -654,18 +757,18 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
         "https://gitlab.com/api/v4/projects/#{CGI.escape(source.repo)}"
       end
       before do
-        stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-          to_return(status: 200,
-                    body: fixture("gitlab", "labels_with_dependencies.json"),
-                    headers: json_header)
+        stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+          .to_return(status: 200,
+                     body: fixture("gitlab", "labels_with_dependencies.json"),
+                     headers: json_header)
       end
 
       context "when a 'dependencies' label exists" do
         before do
-          stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-            to_return(status: 200,
-                      body: fixture("gitlab", "labels_with_dependencies.json"),
-                      headers: json_header)
+          stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+            .to_return(status: 200,
+                       body: fixture("gitlab", "labels_with_dependencies.json"),
+                       headers: json_header)
         end
 
         it { is_expected.to eq(["dependencies"]) }
@@ -673,10 +776,10 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
         context "for a security fix" do
           let(:includes_security_fixes) { true }
           before do
-            stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-              to_return(status: 200,
-                        body: fixture("github", "labels_with_security.json"),
-                        headers: json_header)
+            stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+              .to_return(status: 200,
+                         body: fixture("github", "labels_with_security.json"),
+                         headers: json_header)
           end
 
           it { is_expected.to eq(%w(dependencies security)) }
@@ -685,10 +788,10 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
 
       context "when a custom dependencies label exists" do
         before do
-          stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-            to_return(status: 200,
-                      body: fixture("gitlab", "labels_with_custom.json"),
-                      headers: json_header)
+          stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+            .to_return(status: 200,
+                       body: fixture("gitlab", "labels_with_custom.json"),
+                       headers: json_header)
         end
 
         it { is_expected.to eq(["Dependency: Gems"]) }
@@ -698,22 +801,22 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
         let(:pagination_header) do
           {
             "Content-Type" => "application/json",
-            "Link" => "<#{repo_api_url}/labels?page=2&per_page=100>; "\
+            "Link" => "<#{repo_api_url}/labels?page=2&per_page=100>; " \
                       "rel=\"next\""
           }
         end
 
         before do
-          stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-            to_return(
+          stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+            .to_return(
               status: 200,
               body: fixture("gitlab", "labels_without_dependencies.json"),
               headers: pagination_header
             )
-          stub_request(:get, "#{repo_api_url}/labels?page=2&per_page=100").
-            to_return(status: 200,
-                      body: fixture("gitlab", "labels_with_custom.json"),
-                      headers: json_header)
+          stub_request(:get, "#{repo_api_url}/labels?page=2&per_page=100")
+            .to_return(status: 200,
+                       body: fixture("gitlab", "labels_with_custom.json"),
+                       headers: json_header)
         end
 
         it { is_expected.to eq(["Dependency: Gems"]) }
@@ -746,32 +849,32 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
       end
       let(:repo_api_url) { "https://api.github.com/repos/#{source.repo}" }
       before do
-        stub_request(:post, "#{repo_api_url}/issues/1/labels").
-          to_return(status: 200,
-                    body: fixture("github", "create_label.json"),
-                    headers: json_header)
+        stub_request(:post, "#{repo_api_url}/issues/1/labels")
+          .to_return(status: 200,
+                     body: fixture("github", "create_label.json"),
+                     headers: json_header)
       end
 
       context "when a 'dependencies' label already exists" do
         before do
-          stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-            to_return(status: 200,
-                      body: fixture("github", "labels_with_dependencies.json"),
-                      headers: json_header)
+          stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+            .to_return(status: 200,
+                       body: fixture("github", "labels_with_dependencies.json"),
+                       headers: json_header)
         end
 
         it "labels the PR" do
           label_pr
 
-          expect(WebMock).
-            to have_requested(:post, "#{repo_api_url}/issues/1/labels").
-            with(body: '["dependencies"]')
+          expect(WebMock)
+            .to have_requested(:post, "#{repo_api_url}/issues/1/labels")
+            .with(body: '["dependencies"]')
         end
 
         context "when GitHub unexpectedly errors" do
           before do
-            stub_request(:post, "#{repo_api_url}/issues/1/labels").
-              to_return(
+            stub_request(:post, "#{repo_api_url}/issues/1/labels")
+              .to_return(
                 status: 422,
                 body: fixture("github", "label_already_exists.json"),
                 headers: json_header
@@ -785,18 +888,18 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "labels the PR" do
             label_pr
 
-            expect(WebMock).
-              to have_requested(:post, "#{repo_api_url}/issues/1/labels").
-              with(body: '["dependencies"]').
-              twice
+            expect(WebMock)
+              .to have_requested(:post, "#{repo_api_url}/issues/1/labels")
+              .with(body: '["dependencies"]')
+              .twice
           end
         end
 
         context "when GitHub unexpectedly 404s" do
           before do
-            stub_request(:post, "#{repo_api_url}/issues/1/labels").
-              to_return(status: 404).
-              to_return(
+            stub_request(:post, "#{repo_api_url}/issues/1/labels")
+              .to_return(status: 404)
+              .to_return(
                 status: 200,
                 body: fixture("github", "labels_with_dependencies.json"),
                 headers: json_header
@@ -806,28 +909,28 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
           it "labels the PR" do
             label_pr
 
-            expect(WebMock).
-              to have_requested(:post, "#{repo_api_url}/issues/1/labels").
-              with(body: '["dependencies"]').
-              twice
+            expect(WebMock)
+              .to have_requested(:post, "#{repo_api_url}/issues/1/labels")
+              .with(body: '["dependencies"]')
+              .twice
           end
         end
 
         context "for a security fix" do
           let(:includes_security_fixes) { true }
           before do
-            stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-              to_return(status: 200,
-                        body: fixture("github", "labels_with_security.json"),
-                        headers: json_header)
+            stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+              .to_return(status: 200,
+                         body: fixture("github", "labels_with_security.json"),
+                         headers: json_header)
           end
 
           it "labels the PR" do
             label_pr
 
-            expect(WebMock).
-              to have_requested(:post, "#{repo_api_url}/issues/1/labels").
-              with(body: '["dependencies","security"]')
+            expect(WebMock)
+              .to have_requested(:post, "#{repo_api_url}/issues/1/labels")
+              .with(body: '["dependencies","security"]')
           end
         end
       end
@@ -835,17 +938,17 @@ RSpec.describe Dependabot::PullRequestCreator::Labeler do
       context "when requesting custom labels that don't exist" do
         let(:custom_labels) { ["non-existent"] }
         before do
-          stub_request(:get, "#{repo_api_url}/labels?per_page=100").
-            to_return(status: 200,
-                      body: fixture("github", "labels_with_dependencies.json"),
-                      headers: json_header)
+          stub_request(:get, "#{repo_api_url}/labels?per_page=100")
+            .to_return(status: 200,
+                       body: fixture("github", "labels_with_dependencies.json"),
+                       headers: json_header)
         end
 
         it "does not label the PR" do
           label_pr
 
-          expect(WebMock).
-            to_not have_requested(:post, "#{repo_api_url}/issues/1/labels")
+          expect(WebMock)
+            .to_not have_requested(:post, "#{repo_api_url}/issues/1/labels")
         end
       end
     end

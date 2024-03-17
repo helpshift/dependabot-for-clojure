@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "octokit"
@@ -42,6 +43,15 @@ RSpec.describe Dependabot::GitSubmodules::MetadataFinder do
     }]
   end
 
+  before do
+    # Not hosted on GitHub Enterprise Server
+    stub_request(:get, "https://example.com/status").to_return(
+      status: 200,
+      body: "Not GHES",
+      headers: {}
+    )
+  end
+
   describe "#source_url" do
     subject(:source_url) { finder.source_url }
 
@@ -53,6 +63,11 @@ RSpec.describe Dependabot::GitSubmodules::MetadataFinder do
     context "when the URL is a bitbucket one" do
       let(:url) { "https://bitbucket.org/example/manifesto.git" }
       it { is_expected.to eq("https://bitbucket.org/example/manifesto") }
+    end
+
+    context "when the URL is an azure one" do
+      let(:url) { "https://contoso@dev.azure.com/contoso/MyProject/_git/manifesto" }
+      it { is_expected.to eq("https://dev.azure.com/contoso/MyProject/_git/manifesto") }
     end
 
     context "when the URL is from an unknown host" do
@@ -67,20 +82,30 @@ RSpec.describe Dependabot::GitSubmodules::MetadataFinder do
     context "when the URL is a github one" do
       let(:url) { "https://github.com/example/manifesto.git" }
       it do
-        is_expected.
-          to eq("https://github.com/example/manifesto/compare/"\
-                "7638417db6d59f3c431d3e1f261cc637155684cd..."\
-                "cd8274d15fa3ae2ab983129fb037999f264ba9a7")
+        is_expected
+          .to eq("https://github.com/example/manifesto/compare/" \
+                 "7638417db6d59f3c431d3e1f261cc637155684cd..." \
+                 "cd8274d15fa3ae2ab983129fb037999f264ba9a7")
       end
     end
 
     context "when the URL is a bitbucket one" do
       let(:url) { "https://bitbucket.org/example/manifesto.git" }
       it do
-        is_expected.
-          to eq("https://bitbucket.org/example/manifesto/branches/"\
-                "compare/cd8274d15fa3ae2ab983129fb037999f264ba9a7"\
-                "..7638417db6d59f3c431d3e1f261cc637155684cd")
+        is_expected
+          .to eq("https://bitbucket.org/example/manifesto/branches/" \
+                 "compare/cd8274d15fa3ae2ab983129fb037999f264ba9a7" \
+                 "..7638417db6d59f3c431d3e1f261cc637155684cd")
+      end
+    end
+
+    context "when the URL is an azure one" do
+      let(:url) { "https://contoso@dev.azure.com/contoso/MyProject/_git/manifesto" }
+      it do
+        is_expected
+          .to eq("https://dev.azure.com/contoso/MyProject/_git/manifesto/branchCompare" \
+                 "?baseVersion=GC7638417db6d59f3c431d3e1f261cc637155684cd" \
+                 "&targetVersion=GCcd8274d15fa3ae2ab983129fb037999f264ba9a7")
       end
     end
 

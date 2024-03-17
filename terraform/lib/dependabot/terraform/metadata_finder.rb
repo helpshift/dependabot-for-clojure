@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "excon"
@@ -21,33 +22,27 @@ module Dependabot
       end
 
       def new_source_type
-        sources =
-          dependency.requirements.map { |r| r.fetch(:source) }.uniq.compact
-
-        return "default" if sources.empty?
-        raise "Multiple sources! #{sources.join(', ')}" if sources.count > 1
-
-        sources.first[:type] || sources.first.fetch("type")
+        dependency.source_type
       end
 
       def find_source_from_git_url
-        info = dependency.requirements.map { |r| r[:source] }.compact.first
+        info = dependency.requirements.filter_map { |r| r[:source] }.first
 
         url = info[:url] || info.fetch("url")
         Source.from_url(url)
       end
 
       def find_source_from_registry_details
-        info = dependency.requirements.map { |r| r[:source] }.compact.first
+        info = dependency.requirements.filter_map { |r| r[:source] }.first
         hostname = info[:registry_hostname] || info["registry_hostname"]
 
-        RegistryClient.
-          new(hostname: hostname, credentials: credentials).
-          source(dependency: dependency)
+        RegistryClient
+          .new(hostname: hostname, credentials: credentials)
+          .source(dependency: dependency)
       end
     end
   end
 end
 
-Dependabot::MetadataFinders.
-  register("terraform", Dependabot::Terraform::MetadataFinder)
+Dependabot::MetadataFinders
+  .register("terraform", Dependabot::Terraform::MetadataFinder)

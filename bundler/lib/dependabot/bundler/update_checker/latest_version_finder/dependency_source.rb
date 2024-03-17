@@ -1,13 +1,18 @@
+# typed: true
 # frozen_string_literal: true
 
+require "dependabot/registry_client"
 require "dependabot/bundler/native_helpers"
 require "dependabot/bundler/helpers"
+require "sorbet-runtime"
 
 module Dependabot
   module Bundler
     class UpdateChecker
       class LatestVersionFinder
         class DependencySource
+          extend T::Sig
+
           require_relative "../shared_bundler_helpers"
           include SharedBundlerHelpers
 
@@ -31,7 +36,7 @@ module Dependabot
 
           # The latest version details for the dependency from a registry
           #
-          # @return [Array<Gem::Version>]
+          sig { returns(T::Array[Gem::Version]) }
           def versions
             return rubygems_versions if dependency.name == "bundler"
             return rubygems_versions unless gemfile
@@ -53,14 +58,15 @@ module Dependabot
             return unless git?
 
             source_details =
-              dependency.requirements.map { |r| r.fetch(:source) }.
-              uniq.compact.first
+              dependency.requirements.map { |r| r.fetch(:source) }
+                        .uniq.compact.first
 
             SharedHelpers.with_git_configured(credentials: credentials) do
               in_a_native_bundler_context do |tmp_dir|
                 NativeHelpers.run_bundler_subprocess(
                   bundler_version: bundler_version,
-                  function: "depencency_source_latest_git_version",
+                  function: "dependency_source_latest_git_version",
+                  options: options,
                   args: {
                     dir: tmp_dir,
                     gemfile_name: gemfile.name,
@@ -83,14 +89,12 @@ module Dependabot
           def rubygems_versions
             @rubygems_versions ||=
               begin
-                response = Excon.get(
-                  dependency_rubygems_uri,
-                  idempotent: true,
-                  **SharedHelpers.excon_defaults
+                response = Dependabot::RegistryClient.get(
+                  url: dependency_rubygems_uri
                 )
 
-                JSON.parse(response.body).
-                  map { |d| Gem::Version.new(d["number"]) }
+                JSON.parse(response.body)
+                    .map { |d| Gem::Version.new(d["number"]) }
               end
           rescue JSON::ParserError, Excon::Error::Timeout
             @rubygems_versions = []
@@ -106,6 +110,7 @@ module Dependabot
                 NativeHelpers.run_bundler_subprocess(
                   bundler_version: bundler_version,
                   function: "private_registry_versions",
+                  options: options,
                   args: {
                     dir: tmp_dir,
                     gemfile_name: gemfile.name,
@@ -126,6 +131,7 @@ module Dependabot
               NativeHelpers.run_bundler_subprocess(
                 bundler_version: bundler_version,
                 function: "dependency_source_type",
+                options: options,
                 args: {
                   dir: tmp_dir,
                   gemfile_name: gemfile.name,

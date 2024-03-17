@@ -4,20 +4,15 @@ Elixir support for [`dependabot-core`][core-repo].
 
 ### Running locally
 
-1. Install native helpers
-   ```
-   $ helpers/build helpers/install-dir/hex
-   ```
+1. Start a development shell
 
-2. Install Ruby dependencies
-   ```
-   $ bundle install
-   ```
+  ```
+  $ bin/docker-dev-shell hex
+  ```
 
-3. Run tests
+2. Run tests
    ```
-   $ export DEPENDABOT_NATIVE_HELPERS_PATH=$PWD/helpers/install-dir
-   $ bundle exec rspec spec
+   [dependabot-core-dev] ~ $ cd hex && rspec
    ```
 
 [core-repo]: https://github.com/dependabot/dependabot-core

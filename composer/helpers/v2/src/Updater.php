@@ -6,6 +6,7 @@ namespace Dependabot\Composer;
 
 use Composer\DependencyResolver\Request;
 use Composer\Factory;
+use Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory;
 use Composer\Installer;
 
 final class Updater
@@ -65,7 +66,7 @@ final class Updater
         $install = new Installer(
             $io,
             $config,
-            $composer->getPackage(),
+            $composer->getPackage(), // @phpstan-ignore-line
             $composer->getDownloadManager(),
             $composer->getRepositoryManager(),
             $composer->getLocker(),
@@ -74,17 +75,20 @@ final class Updater
             $composer->getAutoloadGenerator()
         );
 
+        $composer->getEventDispatcher()->setRunScripts(false);
+
         // For all potential options, see UpdateCommand in composer
         $install
             ->setWriteLock(true)
             ->setUpdate(true)
+            ->setInstall(false)
             ->setDevMode(true)
             ->setUpdateAllowList([$dependencyName])
             ->setUpdateAllowTransitiveDependencies(Request::UPDATE_LISTED_WITH_TRANSITIVE_DEPS)
             ->setExecuteOperations(true)
             ->setDumpAutoloader(false)
-            ->setRunScripts(false)
-            ->setIgnorePlatformRequirements(false);
+            ->setPlatformRequirementFilter(PlatformRequirementFilterFactory::fromBoolOrList(false))
+            ->setAudit(false);
 
         $install->run();
 

@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -59,16 +60,16 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
     }]
   end
   let(:credentials) do
-    [{
+    [Dependabot::Credential.new({
       "type" => "git_source",
       "host" => "github.com",
       "username" => "x-access-token",
       "password" => "token"
-    }]
+    })]
   end
   let(:tmp_path) { Dependabot::Utils::BUMP_TMP_DIR_PATH }
 
-  before { Dir.mkdir(tmp_path) unless Dir.exist?(tmp_path) }
+  before { FileUtils.mkdir_p(tmp_path) }
 
   describe "#updated_dependency_files" do
     subject(:updated_files) { updater.updated_dependency_files }
@@ -76,8 +77,8 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
     it "updates the requirements.txt" do
       expect(updated_files.count).to eq(1)
       expect(updated_files.first.content).to include("attrs==18.1.0")
-      expect(updated_files.first.content).
-        to include("pbr==4.0.2\n    # via mock")
+      expect(updated_files.first.content)
+        .to include("pbr==4.0.2\n    # via mock")
       expect(updated_files.first.content).to include("# This file is autogen")
       expect(updated_files.first.content).to_not include("--hash=sha")
     end
@@ -94,8 +95,8 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
       it "updates the requirements.txt" do
         expect(updated_files.count).to eq(1)
         expect(updated_files.first.content).to include("attrs==18.1.0")
-        expect(updated_files.first.content).
-          to include("pbr==4.0.2\n    # via mock")
+        expect(updated_files.first.content)
+          .to include("pbr==4.0.2\n    # via mock")
         expect(updated_files.first.content).to include("# This file is autogen")
         expect(updated_files.first.content).to_not include("--hash=sha")
       end
@@ -122,8 +123,8 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
         expect(updated_files.count).to eq(1)
         expect(updated_files.first.content).to include("psycopg2==2.7.6")
         expect(updated_files.first.content).to include("--no-binary psycopg2")
-        expect(updated_files.first.content).
-          to_not include("--no-binary psycopg2==")
+        expect(updated_files.first.content)
+          .to_not include("--no-binary psycopg2==")
       end
     end
 
@@ -134,8 +135,8 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
         expect(updated_files.count).to eq(1)
         expect(updated_files.first.content).to include("attrs==18.1.0")
         expect(updated_files.first.content).to include("4b90b09eeeb9b88c35bc64")
-        expect(updated_files.first.content).
-          to_not include("# This file is autogen")
+        expect(updated_files.first.content)
+          .to_not include("# This file is autogen")
       end
 
       context "that need to be augmented with hashin" do
@@ -147,18 +148,18 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
 
         it "updates the requirements.txt, keeping all the hashes" do
           expect(updated_files.count).to eq(1)
-          expect(updated_files.first.content).
-            to include("# This file is autogen")
-          expect(updated_files.first.content).
-            to include("pyasn1-modules==0.1.5 \\\n    --hash=sha256:01")
-          expect(updated_files.first.content).
-            to include("--hash=sha256:b437be576bdf440fc0e930")
-          expect(updated_files.first.content).
-            to include("pyasn1==0.3.7 \\\n    --hash=sha256:16")
-          expect(updated_files.first.content).
-            to include("--hash=sha256:bb6f5d5507621e0298794b")
-          expect(updated_files.first.content).
-            to include("# via pyasn1-modules")
+          expect(updated_files.first.content)
+            .to include("# This file is autogen")
+          expect(updated_files.first.content)
+            .to include("pyasn1-modules==0.1.5 \\\n    --hash=sha256:01")
+          expect(updated_files.first.content)
+            .to include("--hash=sha256:b437be576bdf440fc0e930")
+          expect(updated_files.first.content)
+            .to include("pyasn1==0.3.7 \\\n    --hash=sha256:16")
+          expect(updated_files.first.content)
+            .to include("--hash=sha256:bb6f5d5507621e0298794b")
+          expect(updated_files.first.content)
+            .to include("# via pyasn1-modules")
           expect(updated_files.first.content).to_not include("WARNING")
         end
       end
@@ -223,19 +224,19 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
       let(:generated_fixture_name) { "pip_compile_imports_setup.txt" }
       let(:setup_fixture_name) { "small.py" }
 
-      it "updates the requirements.txt" do
+      it "updates the requirements.txt", :slow do
         expect(updated_files.count).to eq(1)
         expect(updated_files.first.content).to include("attrs==18.1.0")
-        expect(updated_files.first.content).
-          to include("-e file:///Users/greysteil/code/python-test")
+        expect(updated_files.first.content)
+          .to include("-e file:///Users/greysteil/code/python-test")
         expect(updated_files.first.content).to_not include("tmp/dependabot")
-        expect(updated_files.first.content).
-          to include("pbr==4.0.2\n    # via mock")
+        expect(updated_files.first.content)
+          .to include("pbr==4.0.2\n    # via mock")
         expect(updated_files.first.content).to include("# This file is autogen")
         expect(updated_files.first.content).to_not include("--hash=sha")
       end
 
-      context "that needs sanitizing" do
+      context "that needs sanitizing", :slow do
         let(:setup_fixture_name) { "small_needs_sanitizing.py" }
         it "updates the requirements.txt" do
           expect(updated_files.count).to eq(1)
@@ -251,10 +252,10 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
       it "updates the requirements.txt" do
         expect(updated_files.count).to eq(1)
         expect(updated_files.first.content).to include("attrs==18.1.0")
-        expect(updated_files.first.content).
-          to include("-e git+https://github.com/testing-cabal/mock.git@2.0.0")
-        expect(updated_files.first.content).
-          to include("-e git+https://github.com/box/flaky.git@v3.5.3#egg=flaky")
+        expect(updated_files.first.content)
+          .to include("-e git+https://github.com/testing-cabal/mock.git@2.0.0")
+        expect(updated_files.first.content)
+          .to include("-e git+https://github.com/box/flaky.git@v3.5.3#egg=flaky")
       end
     end
 
@@ -267,8 +268,8 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
 
       it "updates the requirements.txt" do
         expect(updated_files.count).to eq(1)
-        expect(updated_files.first.content).
-          to include("pbr==4.2.0\n    # via mock")
+        expect(updated_files.first.content)
+          .to include("pbr==4.2.0\n    # via mock")
       end
 
       context "with an uncompiled requirement file, too" do
@@ -300,8 +301,8 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
 
         it "updates the requirements.txt" do
           expect(updated_files.count).to eq(2)
-          expect(updated_files.first.content).
-            to include("pbr==4.2.0\n    # via mock")
+          expect(updated_files.first.content)
+            .to include("pbr==4.2.0\n    # via mock")
           expect(updated_files.last.content).to include("pbr==4.2.0")
         end
       end
@@ -313,8 +314,8 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
       it "updates the requirements.txt" do
         expect(updated_files.count).to eq(1)
         expect(updated_files.first.content).to include("attrs==17.4.0")
-        expect(updated_files.first.content).
-          to include("pbr==4.0.2\n    # via mock")
+        expect(updated_files.first.content)
+          .to include("pbr==4.0.2\n    # via mock")
         expect(updated_files.first.content).to include("# This file is autogen")
         expect(updated_files.first.content).to_not include("--hash=sha")
       end
@@ -492,17 +493,61 @@ RSpec.describe Dependabot::Python::FileUpdater::PipCompileFileUpdater do
       let(:manifest_fixture_name) { "incompatible_versions.in" }
       let(:generated_fixture_name) { "incompatible_versions.txt" }
       let(:dependency_name) { "pyyaml" }
-      let(:dependency_version) { "5.4" }
+      let(:dependency_version) { "6.0.1" }
       let(:dependency_previous_version) { "5.3.1" }
       let(:dependency_requirements) { [] }
       let(:dependency_previous_requirements) { [] }
 
-      it "raises an error indicating the dependencies are not resolvable" do
+      it "raises an error indicating the dependencies are not resolvable", :slow do
         expect { updated_files }.to raise_error(Dependabot::DependencyFileNotResolvable) do |err|
           expect(err.message).to include(
-            "There are incompatible versions in the resolved dependencies:\n  pyyaml==5.4"
+            "There are incompatible versions in the resolved dependencies:\n  pyyaml==6.0.1"
           )
         end
+      end
+    end
+
+    context "with stripped extras" do
+      let(:manifest_fixture_name) { "strip_extras.in" }
+      let(:generated_fixture_name) { "pip_compile_strip_extras.txt" }
+      let(:dependency_name) { "cachecontrol" }
+      let(:dependency_version) { "0.12.10" }
+      let(:dependency_previous_version) { "0.12.9" }
+
+      it "doesn't add an extras annotation on cachecontrol" do
+        expect(updated_files.count).to eq(1)
+        expect(updated_files.first.content).to include("--strip-extras")
+        expect(updated_files.first.content).to include("cachecontrol==0.12.10")
+        expect(updated_files.first.content)
+          .to_not include("cachecontrol[filecache]==")
+      end
+    end
+
+    context "with resolver backtracking header" do
+      let(:manifest_fixture_name) { "celery_extra_sqs.in" }
+      let(:generated_fixture_name) { "pip_compile_resolver_backtracking.txt" }
+      let(:dependency_name) { "celery" }
+      let(:dependency_version) { "5.2.7" }
+      let(:dependency_previous_version) { "5.2.6" }
+
+      it "adds pycurl as dependency" do
+        expect(updated_files.count).to eq(1)
+        expect(updated_files.first.content).to include("--resolver=backtracking")
+        expect(updated_files.first.content).to include("pycurl")
+      end
+    end
+
+    context "with resolver legacy header" do
+      let(:manifest_fixture_name) { "celery_extra_sqs.in" }
+      let(:generated_fixture_name) { "pip_compile_resolver_legacy.txt" }
+      let(:dependency_name) { "celery" }
+      let(:dependency_version) { "5.2.7" }
+      let(:dependency_previous_version) { "5.2.6" }
+
+      it "do not include pycurl" do
+        expect(updated_files.count).to eq(1)
+        expect(updated_files.first.content).to include("--resolver=legacy")
+        expect(updated_files.first.content).to_not include("pycurl")
       end
     end
   end

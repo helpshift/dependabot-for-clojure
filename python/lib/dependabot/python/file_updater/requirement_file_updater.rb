@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/python/requirement_parser"
@@ -20,9 +21,6 @@ module Dependabot
         end
 
         def updated_dependency_files
-          return @updated_dependency_files if @update_already_attempted
-
-          @update_already_attempted = true
           @updated_dependency_files ||= fetch_updated_dependency_files
         end
 
@@ -36,7 +34,7 @@ module Dependabot
         def fetch_updated_dependency_files
           reqs = dependency.requirements.zip(dependency.previous_requirements)
 
-          reqs.map do |(new_req, old_req)|
+          reqs.filter_map do |(new_req, old_req)|
             next if new_req == old_req
 
             file = get_original_file(new_req.fetch(:file)).dup
@@ -46,14 +44,15 @@ module Dependabot
 
             file.content = updated_content
             file
-          end.compact
+          end
         end
 
         def updated_requirement_or_setup_file_content(new_req, old_req)
-          content = get_original_file(new_req.fetch(:file)).content
+          original_file = get_original_file(new_req.fetch(:file))
+          raise "Could not find a dependency file for #{new_req}" unless original_file
 
           RequirementReplacer.new(
-            content: content,
+            content: original_file.content,
             dependency_name: dependency.name,
             old_requirement: old_req.fetch(:requirement),
             new_requirement: new_req.fetch(:requirement),

@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -35,13 +36,21 @@ RSpec.describe Dependabot::Cargo::MetadataFinder do
   let(:dependency_name) { "bitflags" }
   let(:dependency_source) { nil }
 
+  before do
+    stub_request(:get, "https://example.com/status").to_return(
+      status: 200,
+      body: "Not GHES",
+      headers: {}
+    )
+  end
+
   describe "#source_url" do
     subject(:source_url) { finder.source_url }
     let(:crates_url) { "https://crates.io/api/v1/crates/bitflags" }
 
     before do
-      stub_request(:get, crates_url).
-        to_return(
+      stub_request(:get, crates_url)
+        .to_return(
           status: 200,
           body: crates_response
         )
@@ -63,7 +72,9 @@ RSpec.describe Dependabot::Cargo::MetadataFinder do
     end
 
     context "when there is no recognised source link in the response" do
-      let(:crates_fixture_name) { "bitflags_no_source.json" }
+      let(:crates_response) do
+        fixture("crates_io_responses", crates_fixture_name).gsub!("github.com", "example.com")
+      end
 
       it { is_expected.to be_nil }
 
@@ -78,10 +89,10 @@ RSpec.describe Dependabot::Cargo::MetadataFinder do
       let(:crates_fixture_name) { "bitflags.json" }
 
       before do
-        stub_request(:get, crates_url).
-          to_return(status: 302, headers: { "Location" => redirect_url })
-        stub_request(:get, redirect_url).
-          to_return(status: 200, body: crates_response)
+        stub_request(:get, crates_url)
+          .to_return(status: 302, headers: { "Location" => redirect_url })
+        stub_request(:get, redirect_url)
+          .to_return(status: 200, body: crates_response)
       end
 
       it { is_expected.to eq("https://github.com/rust-lang-nursery/bitflags") }

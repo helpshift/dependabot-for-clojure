@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "toml-rb"
@@ -46,16 +47,18 @@ module Dependabot
         workspace_root = parsed_file(cargo_toml).dig("package", "workspace")
         return unless workspace_root
 
-        msg = "This project is part of a Rust workspace but is not the "\
-              "workspace root."\
+        msg = "This project is part of a Rust workspace but is not the " \
+              "workspace root." \
 
-        if cargo_toml.directory != "/"
-          msg += "Please update your settings so Dependabot points at the "\
-                 "workspace root instead of #{cargo_toml.directory}."
+        if cargo_toml&.directory != "/"
+          msg += "Please update your settings so Dependabot points at the " \
+                 "workspace root instead of #{cargo_toml&.directory}."
         end
         raise Dependabot::DependencyFileNotEvaluatable, msg
       end
 
+      # rubocop:disable Metrics/AbcSize
+      # rubocop:disable Metrics/CyclomaticComplexity
       # rubocop:disable Metrics/PerceivedComplexity
       def manifest_dependencies
         dependency_set = DependencySet.new
@@ -79,10 +82,21 @@ module Dependabot
               end
             end
           end
+
+          workspace = parsed_file(file).fetch("workspace", {})
+          workspace.fetch("dependencies", {}).each do |name, requirement|
+            next unless name == name_from_declaration(name, requirement)
+            next if lockfile && !version_from_lockfile(name, requirement)
+
+            dependency_set <<
+              build_dependency(name, requirement, "workspace.dependencies", file)
+          end
         end
 
         dependency_set
       end
+      # rubocop:enable Metrics/AbcSize
+      # rubocop:enable Metrics/CyclomaticComplexity
       # rubocop:enable Metrics/PerceivedComplexity
 
       def build_dependency(name, requirement, type, file)
@@ -148,33 +162,34 @@ module Dependabot
         raise "Unexpected dependency declaration: #{declaration}" unless declaration.is_a?(Hash)
 
         return git_source_details(declaration) if declaration["git"]
-        return { type: "path" } if declaration["path"]
+
+        { type: "path" } if declaration["path"]
       end
 
       def version_from_lockfile(name, declaration)
         return unless lockfile
 
         candidate_packages =
-          parsed_file(lockfile).fetch("package", []).
-          select { |p| p["name"] == name }
+          parsed_file(lockfile).fetch("package", [])
+                               .select { |p| p["name"] == name }
 
         if (req = requirement_from_declaration(declaration))
           req = Cargo::Requirement.new(req)
 
           candidate_packages =
-            candidate_packages.
-            select { |p| req.satisfied_by?(version_class.new(p["version"])) }
+            candidate_packages
+            .select { |p| req.satisfied_by?(version_class.new(p["version"])) }
         end
 
         candidate_packages =
-          candidate_packages.
-          select do |p|
+          candidate_packages
+          .select do |p|
             git_req?(declaration) ^ !p["source"]&.start_with?("git+")
           end
 
         package =
-          candidate_packages.
-          max_by { |p| version_class.new(p["version"]) }
+          candidate_packages
+          .max_by { |p| version_class.new(p["version"]) }
 
         return unless package
 
@@ -213,9 +228,9 @@ module Dependabot
 
       def manifest_files
         @manifest_files ||=
-          dependency_files.
-          select { |f| f.name.end_with?("Cargo.toml") }.
-          reject(&:support_file?)
+          dependency_files
+          .select { |f| f.name.end_with?("Cargo.toml") }
+          .reject(&:support_file?)
       end
 
       def lockfile

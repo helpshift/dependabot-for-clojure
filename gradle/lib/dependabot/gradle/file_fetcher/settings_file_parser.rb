@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "dependabot/gradle/file_fetcher"
@@ -10,13 +11,22 @@ module Dependabot
           @settings_file = settings_file
         end
 
+        def included_build_paths
+          paths = []
+          comment_free_content.scan(function_regex("includeBuild")) do
+            arg = Regexp.last_match.named_captures.fetch("args")
+            paths << arg.gsub(/["']/, "").strip
+          end
+          paths.uniq
+        end
+
         def subproject_paths
           subprojects = []
 
           comment_free_content.scan(function_regex("include")) do
             args = Regexp.last_match.named_captures.fetch("args")
             args = args.split(",")
-            args = args.map { |p| p.gsub(/["']/, "").strip }.compact
+            args = args.filter_map { |p| p.gsub(/["']/, "").strip }
             subprojects += args
           end
 
@@ -24,8 +34,8 @@ module Dependabot
 
           subproject_dirs = subprojects.map do |proj|
             if comment_free_content.match?(project_dir_regex(proj))
-              comment_free_content.match(project_dir_regex(proj)).
-                named_captures.fetch("path").sub(%r{^/}, "")
+              comment_free_content.match(project_dir_regex(proj))
+                                  .named_captures.fetch("path").sub(%r{^/}, "")
             else
               proj.tr(":", "/").sub(%r{^/}, "")
             end
@@ -39,9 +49,9 @@ module Dependabot
         attr_reader :settings_file
 
         def comment_free_content
-          settings_file.content.
-            gsub(%r{(?<=^|\s)//.*$}, "\n").
-            gsub(%r{(?<=^|\s)/\*.*?\*/}m, "")
+          settings_file.content
+                       .gsub(%r{(?<=^|\s)//.*$}, "\n")
+                       .gsub(%r{(?<=^|\s)/\*.*?\*/}m, "")
         end
 
         def function_regex(function_name)

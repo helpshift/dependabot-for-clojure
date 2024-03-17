@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -11,8 +12,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
   it_behaves_like "an update checker"
 
   let(:maven_central_metadata_url) do
-    "https://repo.maven.apache.org/maven2/"\
-    "com/google/guava/guava/maven-metadata.xml"
+    "https://repo.maven.apache.org/maven2/" \
+      "com/google/guava/guava/maven-metadata.xml"
   end
   let(:version_class) { Dependabot::Gradle::Version }
   let(:maven_central_releases) do
@@ -20,8 +21,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
   end
 
   before do
-    stub_request(:get, maven_central_metadata_url).
-      to_return(status: 200, body: maven_central_releases)
+    stub_request(:get, maven_central_metadata_url)
+      .to_return(status: 200, body: maven_central_releases)
   end
 
   let(:checker) do
@@ -97,8 +98,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
     context "when the version comes from a property" do
       let(:buildfile_fixture_name) { "single_property_build.gradle" }
       let(:maven_central_metadata_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
       end
       let(:dependency_requirements) do
         [{
@@ -123,8 +124,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
     context "when the dependency comes from a dependency set" do
       let(:buildfile_fixture_name) { "dependency_set.gradle" }
       let(:maven_central_metadata_url) do
-        "https://jcenter.bintray.com/"\
-        "com/google/protobuf/protoc/maven-metadata.xml"
+        "https://jcenter.bintray.com/" \
+          "com/google/protobuf/protoc/maven-metadata.xml"
       end
       let(:dependency_requirements) do
         [{
@@ -194,8 +195,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
     context "when the version comes from a property" do
       let(:buildfile_fixture_name) { "single_property_build.gradle" }
       let(:maven_central_metadata_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
       end
       let(:dependency_requirements) do
         [{
@@ -220,8 +221,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
     context "when the dependency comes from a dependency set" do
       let(:buildfile_fixture_name) { "dependency_set.gradle" }
       let(:maven_central_metadata_url) do
-        "https://jcenter.bintray.com/"\
-        "com/google/protobuf/protoc/maven-metadata.xml"
+        "https://jcenter.bintray.com/" \
+          "com/google/protobuf/protoc/maven-metadata.xml"
       end
       let(:dependency_requirements) do
         [{
@@ -265,23 +266,23 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
     subject { checker.updated_requirements.first }
 
     before do
-      allow(checker).
-        to receive(:latest_version).
-        and_return(version_class.new("23.6-jre"))
+      allow(checker)
+        .to receive(:latest_version)
+        .and_return(version_class.new("23.6-jre"))
     end
 
     it "delegates to the RequirementsUpdater" do
-      expect(described_class::RequirementsUpdater).
-        to receive(:new).
-        with(
+      expect(described_class::RequirementsUpdater)
+        .to receive(:new)
+        .with(
           requirements: dependency_requirements,
           latest_version: "23.6-jre",
           source_url: "https://repo.maven.apache.org/maven2",
           properties_to_update: []
-        ).
-        and_call_original
-      expect(checker.updated_requirements).
-        to eq(
+        )
+        .and_call_original
+      expect(checker.updated_requirements)
+        .to eq(
           [{
             file: "build.gradle",
             requirement: "23.6-jre",
@@ -307,17 +308,17 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
       end
 
       it "delegates to the RequirementsUpdater" do
-        expect(described_class::RequirementsUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::RequirementsUpdater)
+          .to receive(:new)
+          .with(
             requirements: dependency_requirements,
             latest_version: "20.0",
             source_url: "https://repo.maven.apache.org/maven2",
             properties_to_update: []
-          ).
-          and_call_original
-        expect(checker.updated_requirements).
-          to eq(
+          )
+          .and_call_original
+        expect(checker.updated_requirements)
+          .to eq(
             [{
               file: "build.gradle",
               requirement: "20.0",
@@ -350,12 +351,12 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
       let(:buildfile_fixture_name) { "shortform_build.gradle" }
       let(:dependency_version) { "1.1.4-3" }
       let(:maven_central_metadata_url_gradle_plugin) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml"
       end
       let(:maven_central_metadata_url_stdlib) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
       end
       let(:dependency_requirements) do
         [{
@@ -368,25 +369,25 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
       end
 
       before do
-        allow(checker).
-          to receive(:latest_version).
-          and_return(version_class.new("23.6-jre"))
-        stub_request(:get, maven_central_metadata_url_gradle_plugin).
-          to_return(
+        allow(checker)
+          .to receive(:latest_version)
+          .and_return(version_class.new("23.6-jre"))
+        stub_request(:get, maven_central_metadata_url_gradle_plugin)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
-        stub_request(:get, maven_central_metadata_url_stdlib).
-          to_return(
+        stub_request(:get, maven_central_metadata_url_stdlib)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
       end
 
       it "delegates to the MultiDependencyUpdater" do
-        expect(described_class::MultiDependencyUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::MultiDependencyUpdater)
+          .to receive(:new)
+          .with(
             dependency: dependency,
             dependency_files: dependency_files,
             credentials: credentials,
@@ -396,8 +397,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
               version: version_class.new("23.0"),
               source_url: "https://repo.maven.apache.org/maven2"
             }
-          ).
-          and_call_original
+          )
+          .and_call_original
         expect(subject).to eq(true)
       end
     end
@@ -419,40 +420,40 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
       let(:dependency_version) { "3.6.1" }
 
       let(:jcenter_metadata_url_protoc) do
-        "https://jcenter.bintray.com/"\
-        "com/google/protobuf/protoc/maven-metadata.xml"
+        "https://jcenter.bintray.com/" \
+          "com/google/protobuf/protoc/maven-metadata.xml"
       end
       let(:jcenter_metadata_url_protobuf_java) do
-        "https://jcenter.bintray.com/"\
-        "com/google/protobuf/protobuf-java/maven-metadata.xml"
+        "https://jcenter.bintray.com/" \
+          "com/google/protobuf/protobuf-java/maven-metadata.xml"
       end
       let(:jcenter_metadata_url_protobuf_java_util) do
-        "https://jcenter.bintray.com/"\
-        "com/google/protobuf/protobuf-java-util/maven-metadata.xml"
+        "https://jcenter.bintray.com/" \
+          "com/google/protobuf/protobuf-java-util/maven-metadata.xml"
       end
 
       before do
-        stub_request(:get, jcenter_metadata_url_protoc).
-          to_return(
+        stub_request(:get, jcenter_metadata_url_protoc)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
-        stub_request(:get, jcenter_metadata_url_protobuf_java).
-          to_return(
+        stub_request(:get, jcenter_metadata_url_protobuf_java)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
-        stub_request(:get, jcenter_metadata_url_protobuf_java_util).
-          to_return(
+        stub_request(:get, jcenter_metadata_url_protobuf_java_util)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
       end
 
       it "delegates to the MultiDependencyUpdater" do
-        expect(described_class::MultiDependencyUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::MultiDependencyUpdater)
+          .to receive(:new)
+          .with(
             dependency: dependency,
             dependency_files: dependency_files,
             credentials: credentials,
@@ -462,8 +463,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
               version: version_class.new("23.0"),
               source_url: "https://jcenter.bintray.com"
             }
-          ).
-          and_call_original
+          )
+          .and_call_original
         expect(subject).to eq(true)
       end
     end
@@ -477,12 +478,12 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
       let(:buildfile_fixture_name) { "shortform_build.gradle" }
       let(:dependency_version) { "1.1.4-3" }
       let(:maven_central_metadata_url_gradle_plugin) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml"
       end
       let(:maven_central_metadata_url_stdlib) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
       end
       let(:dependency_requirements) do
         [{
@@ -495,25 +496,25 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
       end
 
       before do
-        allow(checker).
-          to receive(:latest_version).
-          and_return(version_class.new("23.6-jre"))
-        stub_request(:get, maven_central_metadata_url_gradle_plugin).
-          to_return(
+        allow(checker)
+          .to receive(:latest_version)
+          .and_return(version_class.new("23.6-jre"))
+        stub_request(:get, maven_central_metadata_url_gradle_plugin)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
-        stub_request(:get, maven_central_metadata_url_stdlib).
-          to_return(
+        stub_request(:get, maven_central_metadata_url_stdlib)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
       end
 
       it "delegates to the MultiDependencyUpdater" do
-        expect(described_class::MultiDependencyUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::MultiDependencyUpdater)
+          .to receive(:new)
+          .with(
             dependency: dependency,
             dependency_files: dependency_files,
             credentials: credentials,
@@ -523,8 +524,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker do
               version: version_class.new("23.0"),
               source_url: "https://repo.maven.apache.org/maven2"
             }
-          ).
-          and_call_original
+          )
+          .and_call_original
         expect(subject).to eq(
           [
             Dependabot::Dependency.new(

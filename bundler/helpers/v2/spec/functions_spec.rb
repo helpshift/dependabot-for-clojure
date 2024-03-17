@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "native_spec_helper"
@@ -38,7 +39,7 @@ RSpec.describe Functions do
       expect(git_specs.size).to eq(count)
       git_specs.each do |gs|
         uri = URI.parse(gs[:auth_uri])
-        expect(uri.scheme).to(satisfy { |s| %w(http https).include?(s) })
+        expect(uri.scheme).to(satisfy { |s| s.match?(/https?/o) })
       end
     end
 

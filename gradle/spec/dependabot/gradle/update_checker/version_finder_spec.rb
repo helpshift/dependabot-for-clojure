@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -46,16 +47,16 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
   let(:dependency_version) { "23.3-jre" }
 
   let(:maven_central_metadata_url) do
-    "https://repo.maven.apache.org/maven2/"\
-    "com/google/guava/guava/maven-metadata.xml"
+    "https://repo.maven.apache.org/maven2/" \
+      "com/google/guava/guava/maven-metadata.xml"
   end
   let(:maven_central_releases) do
     fixture("maven_central_metadata", "with_release.xml")
   end
 
   before do
-    stub_request(:get, maven_central_metadata_url).
-      to_return(status: 200, body: maven_central_releases)
+    stub_request(:get, maven_central_metadata_url)
+      .to_return(status: 200, body: maven_central_releases)
   end
 
   describe "#latest_version_details" do
@@ -88,8 +89,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
     context "when the user has asked for a version type and it's available" do
       let(:dependency_name) { "com.thoughtworks.xstream:xstream" }
       let(:maven_central_metadata_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "com/thoughtworks/xstream/xstream/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "com/thoughtworks/xstream/xstream/maven-metadata.xml"
       end
       let(:maven_central_releases) do
         fixture("maven_central_metadata", "with_version_type_releases.xml")
@@ -110,8 +111,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       let(:dependency_version) { "1.4.11.1" }
 
       let(:maven_central_metadata_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "com/thoughtworks/xstream/xstream/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "com/thoughtworks/xstream/xstream/maven-metadata.xml"
       end
       let(:maven_central_releases) do
         fixture("maven_central_metadata", "with_version_type_releases.xml")
@@ -142,8 +143,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       let(:ignored_versions) { ["> 22.0"] }
       let(:dependency_version) { "22.0" }
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "com/google/guava/guava/22.0/guava-22.0.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "com/google/guava/guava/22.0/guava-22.0.jar"
       end
       let(:maven_central_version_files) do
         fixture("maven_central_version_files", "guava-22.0.html")
@@ -211,29 +212,29 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       let(:buildfile_fixture_name) { "custom_repos_build.gradle" }
 
       let(:jcenter_metadata_url) do
-        "https://jcenter.bintray.com/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://jcenter.bintray.com/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       let(:magnusja_metadata_url) do
-        "https://dl.bintray.com/magnusja/maven/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://dl.bintray.com/magnusja/maven/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       let(:google_metadata_url) do
-        "https://maven.google.com/"\
-        "com/google/guava/group-index.xml"
+        "https://maven.google.com/" \
+          "com/google/guava/group-index.xml"
       end
 
       let(:dependency_version) { "18.0.0" }
 
       before do
-        stub_request(:get, jcenter_metadata_url).
-          to_return(status: 404, body: "")
-        stub_request(:get, magnusja_metadata_url).
-          to_raise(Excon::Error::Timeout)
-        stub_request(:get, google_metadata_url).
-          to_return(
+        stub_request(:get, jcenter_metadata_url)
+          .to_return(status: 404, body: "")
+        stub_request(:get, magnusja_metadata_url)
+          .to_raise(Excon::Error::Timeout)
+        stub_request(:get, google_metadata_url)
+          .to_return(
             status: 200,
             body: fixture("google_metadata", "com_google_guava.xml")
           )
@@ -256,16 +257,16 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       end
 
       let(:private_registry_metadata_url) do
-        "https://private.registry.org/repo/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://private.registry.org/repo/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       before do
-        stub_request(:get, maven_central_metadata_url).
-          to_return(status: 404)
-        stub_request(:get, private_registry_metadata_url).
-          with(basic_auth: %w(dependabot dependabotPassword)).
-          to_return(status: 200, body: maven_central_releases)
+        stub_request(:get, maven_central_metadata_url)
+          .to_return(status: 404)
+        stub_request(:get, private_registry_metadata_url)
+          .with(basic_auth: %w(dependabot dependabotPassword))
+          .to_return(status: 200, body: maven_central_releases)
       end
 
       its([:version]) { is_expected.to eq(version_class.new("23.6-jre")) }
@@ -290,16 +291,16 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
         end
 
         let(:private_registry_metadata_url) do
-          "https://private.registry.org/api/v4/groups/-/packages/maven/"\
-          "com/google/guava/guava/maven-metadata.xml"
+          "https://private.registry.org/api/v4/groups/-/packages/maven/" \
+            "com/google/guava/guava/maven-metadata.xml"
         end
 
         before do
-          stub_request(:get, maven_central_metadata_url).
-            to_return(status: 404)
-          stub_request(:get, private_registry_metadata_url).
-            with(headers: { "Private-Token" => "customToken" }).
-            to_return(status: 200, body: maven_central_releases)
+          stub_request(:get, maven_central_metadata_url)
+            .to_return(status: 404)
+          stub_request(:get, private_registry_metadata_url)
+            .with(headers: { "Private-Token" => "customToken" })
+            .to_return(status: 200, body: maven_central_releases)
         end
 
         its([:version]) { is_expected.to eq(version_class.new("23.6-jre")) }
@@ -317,8 +318,8 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
         end
 
         before do
-          stub_request(:get, private_registry_metadata_url).
-            to_return(status: 200, body: maven_central_releases)
+          stub_request(:get, private_registry_metadata_url)
+            .to_return(status: 200, body: maven_central_releases)
         end
 
         its([:version]) { is_expected.to eq(version_class.new("23.6-jre")) }
@@ -328,14 +329,14 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
 
         context "when credentials are required" do
           before do
-            stub_request(:get, private_registry_metadata_url).
-              to_return(status: 401, body: "no dice")
+            stub_request(:get, private_registry_metadata_url)
+              .to_return(status: 401, body: "no dice")
           end
 
           it "raises a helpful error" do
             error_class = Dependabot::PrivateSourceAuthenticationFailure
-            expect { subject }.
-              to raise_error(error_class) do |error|
+            expect { subject }
+              .to raise_error(error_class) do |error|
               expect(error.source).to eq("https://private.registry.org/repo")
             end
           end
@@ -376,32 +377,32 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       end
 
       let(:private_registry_metadata_url) do
-        "https://private.registry.org/repo/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://private.registry.org/repo/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       let(:second_repo) do
-        "https://private.registry.org/repo2/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://private.registry.org/repo2/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       let(:gitlab_maven_repo) do
-        "https://private.registry.org/api/v4/groups/-/packages/maven/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://private.registry.org/api/v4/groups/-/packages/maven/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       before do
-        stub_request(:get, maven_central_metadata_url).
-          to_return(status: 404)
-        stub_request(:get, second_repo).
-          with(basic_auth: %w(dependabot2 dependabotPassword2)).
-          to_return(status: 404)
-        stub_request(:get, gitlab_maven_repo).
-          with(headers: { "Private-Token" => "customToken" }).
-          to_return(status: 404)
-        stub_request(:get, private_registry_metadata_url).
-          with(basic_auth: %w(dependabot dependabotPassword)).
-          to_return(status: 200, body: maven_central_releases)
+        stub_request(:get, maven_central_metadata_url)
+          .to_return(status: 404)
+        stub_request(:get, second_repo)
+          .with(basic_auth: %w(dependabot2 dependabotPassword2))
+          .to_return(status: 404)
+        stub_request(:get, gitlab_maven_repo)
+          .with(headers: { "Private-Token" => "customToken" })
+          .to_return(status: 404)
+        stub_request(:get, private_registry_metadata_url)
+          .with(basic_auth: %w(dependabot dependabotPassword))
+          .to_return(status: 200, body: maven_central_releases)
       end
 
       its([:version]) { is_expected.to eq(version_class.new("23.6-jre")) }
@@ -423,23 +424,23 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       let(:dependency_version) { "2.0.5.RELEASE" }
 
       let(:private_plugin_registry_metadata_url) do
-        "https://private.registry.org/repo/org/springframework/boot/"\
-        "org.springframework.boot.gradle.plugin/maven-metadata.xml"
+        "https://private.registry.org/repo/org/springframework/boot/" \
+          "org.springframework.boot.gradle.plugin/maven-metadata.xml"
       end
       let(:gradle_plugin_releases) do
         fixture("gradle_plugin_metadata", "org_springframework_boot.xml")
       end
       let(:maven_metadata_url) do
-        "https://plugins.gradle.org/m2/org/springframework/boot/"\
-        "org.springframework.boot.gradle.plugin/maven-metadata.xml"
+        "https://plugins.gradle.org/m2/org/springframework/boot/" \
+          "org.springframework.boot.gradle.plugin/maven-metadata.xml"
       end
       let(:repo_maven_metadata_url) do
-        "https://repo.maven.apache.org/maven2/org/springframework/boot"\
-        "/org.springframework.boot.gradle.plugin/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/org/springframework/boot" \
+          "/org.springframework.boot.gradle.plugin/maven-metadata.xml"
       end
       before do
-        stub_request(:get, repo_maven_metadata_url).
-          to_return(status: 404)
+        stub_request(:get, repo_maven_metadata_url)
+          .to_return(status: 404)
       end
 
       context "with credentials" do
@@ -453,11 +454,11 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
         end
 
         before do
-          stub_request(:get, maven_metadata_url).
-            to_return(status: 404)
-          stub_request(:get, private_plugin_registry_metadata_url).
-            with(basic_auth: %w(dependabot dependabotPassword)).
-            to_return(status: 200, body: gradle_plugin_releases)
+          stub_request(:get, maven_metadata_url)
+            .to_return(status: 404)
+          stub_request(:get, private_plugin_registry_metadata_url)
+            .with(basic_auth: %w(dependabot dependabotPassword))
+            .to_return(status: 200, body: gradle_plugin_releases)
         end
 
         its([:version]) do
@@ -477,10 +478,10 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
         end
 
         before do
-          stub_request(:get, maven_metadata_url).
-            to_return(status: 404)
-          stub_request(:get, private_plugin_registry_metadata_url).
-            to_return(status: 200, body: gradle_plugin_releases)
+          stub_request(:get, maven_metadata_url)
+            .to_return(status: 404)
+          stub_request(:get, private_plugin_registry_metadata_url)
+            .to_return(status: 200, body: gradle_plugin_releases)
         end
 
         its([:version]) do
@@ -499,16 +500,16 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
           }]
         end
         before do
-          stub_request(:get, maven_metadata_url).
-            to_return(status: 404)
-          stub_request(:get, private_plugin_registry_metadata_url).
-            to_return(status: 401, body: "no dice")
+          stub_request(:get, maven_metadata_url)
+            .to_return(status: 404)
+          stub_request(:get, private_plugin_registry_metadata_url)
+            .to_return(status: 401, body: "no dice")
         end
 
         it "raises a helpful error" do
           error_class = Dependabot::PrivateSourceAuthenticationFailure
-          expect { subject }.
-            to raise_error(error_class) do |error|
+          expect { subject }
+            .to raise_error(error_class) do |error|
             expect(error.source).to eq("https://private.registry.org/repo")
           end
         end
@@ -571,20 +572,20 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       let(:dependency_version) { "2.0.5.RELEASE" }
 
       let(:gradle_plugin_metadata_url) do
-        "https://plugins.gradle.org/m2/org/springframework/boot/"\
-        "org.springframework.boot.gradle.plugin/maven-metadata.xml"
+        "https://plugins.gradle.org/m2/org/springframework/boot/" \
+          "org.springframework.boot.gradle.plugin/maven-metadata.xml"
       end
       let(:gradle_plugin_releases) do
         fixture("gradle_plugin_metadata", "org_springframework_boot.xml")
       end
       let(:maven_metadata_url) do
-        "https://repo.maven.apache.org/maven2/org/springframework/boot/"\
-        "org.springframework.boot.gradle.plugin/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/org/springframework/boot/" \
+          "org.springframework.boot.gradle.plugin/maven-metadata.xml"
       end
 
       before do
-        stub_request(:get, gradle_plugin_metadata_url).
-          to_return(status: 200, body: gradle_plugin_releases)
+        stub_request(:get, gradle_plugin_metadata_url)
+          .to_return(status: 200, body: gradle_plugin_releases)
         stub_request(:get, maven_metadata_url).to_return(status: 404)
       end
 
@@ -624,20 +625,20 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       let(:dependency_version) { "1.4.10" }
 
       let(:gradle_plugin_metadata_url) do
-        "https://plugins.gradle.org/m2/org/jetbrains/kotlin/jvm/"\
-        "org.jetbrains.kotlin.jvm.gradle.plugin/maven-metadata.xml"
+        "https://plugins.gradle.org/m2/org/jetbrains/kotlin/jvm/" \
+          "org.jetbrains.kotlin.jvm.gradle.plugin/maven-metadata.xml"
       end
       let(:gradle_plugin_releases) do
         fixture("gradle_plugin_metadata", "org_jetbrains_kotlin_jvm.xml")
       end
       let(:maven_metadata_url) do
-        "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/jvm/"\
-        "org.jetbrains.kotlin.jvm.gradle.plugin/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/jvm/" \
+          "org.jetbrains.kotlin.jvm.gradle.plugin/maven-metadata.xml"
       end
 
       before do
-        stub_request(:get, gradle_plugin_metadata_url).
-          to_return(status: 200, body: gradle_plugin_releases)
+        stub_request(:get, gradle_plugin_metadata_url)
+          .to_return(status: 200, body: gradle_plugin_releases)
         stub_request(:get, maven_metadata_url).to_return(status: 404)
       end
 
@@ -668,27 +669,27 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       let(:buildfile_fixture_name) { "custom_repos_build.gradle" }
 
       let(:jcenter_metadata_url) do
-        "https://jcenter.bintray.com/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://jcenter.bintray.com/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       let(:magnusja_metadata_url) do
-        "https://dl.bintray.com/magnusja/maven/"\
-        "com/google/guava/guava/maven-metadata.xml"
+        "https://dl.bintray.com/magnusja/maven/" \
+          "com/google/guava/guava/maven-metadata.xml"
       end
 
       let(:google_metadata_url) do
-        "https://maven.google.com/"\
-        "com/google/guava/group-index.xml"
+        "https://maven.google.com/" \
+          "com/google/guava/group-index.xml"
       end
 
       before do
-        stub_request(:get, jcenter_metadata_url).
-          to_return(status: 404, body: "")
-        stub_request(:get, magnusja_metadata_url).
-          to_raise(Excon::Error::Timeout)
-        stub_request(:get, google_metadata_url).
-          to_return(
+        stub_request(:get, jcenter_metadata_url)
+          .to_return(status: 404, body: "")
+        stub_request(:get, magnusja_metadata_url)
+          .to_raise(Excon::Error::Timeout)
+        stub_request(:get, google_metadata_url)
+          .to_return(
             status: 200,
             body: fixture("google_metadata", "com_google_guava.xml")
           )
@@ -713,21 +714,21 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
       context "with a name that can't be an xpath" do
         let(:dependency_name) { "com.google.guava:guava~bad" }
         let(:jcenter_metadata_url) do
-          "https://jcenter.bintray.com/"\
-          "com/google/guava/guava~bad/maven-metadata.xml"
+          "https://jcenter.bintray.com/" \
+            "com/google/guava/guava~bad/maven-metadata.xml"
         end
         let(:magnusja_metadata_url) do
-          "https://dl.bintray.com/magnusja/maven/"\
-          "com/google/guava/guava~bad/maven-metadata.xml"
+          "https://dl.bintray.com/magnusja/maven/" \
+            "com/google/guava/guava~bad/maven-metadata.xml"
         end
         let(:google_metadata_url) do
-          "https://maven.google.com/"\
-          "com/google/guava/group-index.xml"
+          "https://maven.google.com/" \
+            "com/google/guava/group-index.xml"
         end
 
         before do
-          stub_request(:get, google_metadata_url).
-            to_return(status: 404, body: "")
+          stub_request(:get, google_metadata_url)
+            .to_return(status: 404, body: "")
         end
 
         it { is_expected.to eq([]) }
@@ -735,16 +736,16 @@ RSpec.describe Dependabot::Gradle::UpdateChecker::VersionFinder do
 
       context "when the details come from a non-google repo" do
         before do
-          stub_request(:get, jcenter_metadata_url).
-            to_return(
+          stub_request(:get, jcenter_metadata_url)
+            .to_return(
               status: 200,
               body:
                 fixture("maven_central_metadata", "with_release.xml")
             )
-          stub_request(:get, magnusja_metadata_url).
-            to_raise(Excon::Error::Timeout)
-          stub_request(:get, google_metadata_url).
-            to_return(status: 404, body: "")
+          stub_request(:get, magnusja_metadata_url)
+            .to_raise(Excon::Error::Timeout)
+          stub_request(:get, google_metadata_url)
+            .to_return(status: 404, body: "")
         end
 
         describe "the last version" do

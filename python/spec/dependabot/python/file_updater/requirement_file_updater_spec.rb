@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -44,12 +45,12 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
   let(:previous_requirement_string) { "==2.6.1" }
   let(:updated_requirement_string) { "==2.8.1" }
   let(:credentials) do
-    [{
+    [Dependabot::Credential.new({
       "type" => "git_source",
       "host" => "github.com",
       "username" => "x-access-token",
       "password" => "token"
-    }]
+    })]
   end
 
   describe "#updated_dependency_files" do
@@ -101,8 +102,8 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
         context "with no space after the comma" do
           let(:requirements) do
             Dependabot::DependencyFile.new(
-              content: fixture("requirements", "version_between_bounds.txt").
-                       gsub(", ", ","),
+              content: fixture("requirements", "version_between_bounds.txt")
+                       .gsub(", ", ","),
               name: "requirements.txt"
             )
           end
@@ -163,10 +164,10 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
 
         its(:content) do
           is_expected.to eq(
-            "pytest==3.3.1 "\
-            "--hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc42ad7"\
-            "331c9ad06d0efe4962  "\
-            "--hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d64096"\
+            "pytest==3.3.1 " \
+            "--hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc42ad7" \
+            "331c9ad06d0efe4962  " \
+            "--hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d64096" \
             "cebe79fb51ecb2eb93\n"
           )
         end
@@ -176,13 +177,13 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
 
           its(:content) do
             is_expected.to include(
-              "pytest==3.3.1 "\
-              "--hash=sha512:f3d73e475dbfbcd9f218268caefeab86038dde4380fcf727"\
-              "b3436847849e57309c14f6f9769e85502c6121dab354d20a1316e2e30249c0"\
-              "a2b28e87d90f71e65e  "\
-              "--hash=sha512:f190f9a8a8f55e9dbf311429eb86e023e096d5388e1c4216"\
-              "fc8d833fbdec8fa67f67b89a174dfead663b34e5f5df124085825446297cf7"\
-              "d9500527d9e8ddb15d\n"
+              "pytest==3.3.1 " \
+              "--hash=sha512:f190f9a8a8f55e9dbf311429eb86e023e096d5388e1c4216" \
+              "fc8d833fbdec8fa67f67b89a174dfead663b34e5f5df124085825446297cf7" \
+              "d9500527d9e8ddb15d  " \
+              "--hash=sha512:f3d73e475dbfbcd9f218268caefeab86038dde4380fcf727" \
+              "b3436847849e57309c14f6f9769e85502c6121dab354d20a1316e2e30249c0" \
+              "a2b28e87d90f71e65e\n"
             )
           end
         end
@@ -192,10 +193,24 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
 
           its(:content) do
             is_expected.to eq(
-              "pytest==3.3.1 \\\n"\
-              "    --hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc4"\
-              "2ad7331c9ad06d0efe4962 \\\n"\
-              "    --hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d6"\
+              "pytest==3.3.1 \\\n" \
+              "    --hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc4" \
+              "2ad7331c9ad06d0efe4962 \\\n" \
+              "    --hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d6" \
+              "4096cebe79fb51ecb2eb93\n"
+            )
+          end
+        end
+
+        context "with linebreaks and no space after each hash" do
+          let(:requirements_fixture_name) { "hashes_multiline_no_space.txt" }
+
+          its(:content) do
+            is_expected.to eq(
+              "pytest==3.3.1 \\\n" \
+              "    --hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc4" \
+              "2ad7331c9ad06d0efe4962\\\n" \
+              "    --hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d6" \
               "4096cebe79fb51ecb2eb93\n"
             )
           end
@@ -206,10 +221,10 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
 
           its(:content) do
             is_expected.to eq(
-              "pytest==3.3.1 ; python_version=='2.7' \\\n"\
-              "    --hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc4"\
-              "2ad7331c9ad06d0efe4962 \\\n"\
-              "    --hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d6"\
+              "pytest==3.3.1 ; python_version=='2.7' \\\n" \
+              "    --hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc4" \
+              "2ad7331c9ad06d0efe4962 \\\n" \
+              "    --hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d6" \
               "4096cebe79fb51ecb2eb93\n"
             )
           end
@@ -240,8 +255,8 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
 
           its(:content) do
             is_expected.to eq(
-              "flask-featureflags==0.6 \\\n"\
-              "    --hash=sha256:fc8490e4e4c1eac03e306fade8ef4be3cddff6229"\
+              "flask-featureflags==0.6 \\\n" \
+              "    --hash=sha256:fc8490e4e4c1eac03e306fade8ef4be3cddff6229" \
               "aaa3bb96466ede7d107b241\n"
             )
           end
@@ -271,10 +286,10 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
 
             its(:content) do
               is_expected.to eq(
-                "pytest==3.3.1 "\
-                "--hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc4"\
-                "2ad7331c9ad06d0efe4962 "\
-                "--hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d6"\
+                "pytest==3.3.1 " \
+                "--hash=sha256:ae4a2d0bae1098bbe938ecd6c20a526d5d47a94dc4" \
+                "2ad7331c9ad06d0efe4962 " \
+                "--hash=sha256:cf8436dc59d8695346fcd3ab296de46425ecab00d6" \
                 "4096cebe79fb51ecb2eb93\n"
               )
             end
@@ -588,8 +603,8 @@ RSpec.describe Dependabot::Python::FileUpdater::RequirementFileUpdater do
       end
 
       it "updates both files" do
-        expect(updated_files.map(&:name)).
-          to match_array(%w(requirements.txt constraints.txt))
+        expect(updated_files.map(&:name))
+          .to match_array(%w(requirements.txt constraints.txt))
         expect(updated_files.first.content).to include("requests==2.8.1\n")
         expect(updated_files.last.content).to include("requests==2.8.1\n")
       end

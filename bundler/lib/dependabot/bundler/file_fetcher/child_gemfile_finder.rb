@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "pathname"
@@ -33,8 +34,8 @@ module Dependabot
             path_node = node.children[2]
             unless path_node.type == :str
               path = gemfile.path
-              msg = "Dependabot only supports uninterpolated string arguments "\
-                    "to eval_gemfile. Got "\
+              msg = "Dependabot only supports uninterpolated string arguments " \
+                    "to eval_gemfile. Got " \
                     "`#{path_node.loc.expression.source}`"
               raise Dependabot::DependencyFileNotParseable.new(path, msg)
             end

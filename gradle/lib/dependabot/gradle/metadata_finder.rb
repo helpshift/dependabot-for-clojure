@@ -1,17 +1,22 @@
+# typed: true
 # frozen_string_literal: true
 
 require "nokogiri"
+require "sorbet-runtime"
 require "dependabot/metadata_finders"
 require "dependabot/metadata_finders/base"
 require "dependabot/file_fetchers/base"
 require "dependabot/gradle/file_parser/repositories_finder"
 require "dependabot/maven/utils/auth_headers_finder"
+require "dependabot/registry_client"
 
 module Dependabot
   module Gradle
     class MetadataFinder < Dependabot::MetadataFinders::Base
-      DOT_SEPARATOR_REGEX = %r{\.(?!\d+([.\/_\-]|$)+)}.freeze
-      PROPERTY_REGEX      = /\$\{(?<property>.*?)\}/.freeze
+      extend T::Sig
+
+      DOT_SEPARATOR_REGEX = %r{\.(?!\d+([.\/_\-]|$)+)}
+      PROPERTY_REGEX      = /\$\{(?<property>.*?)\}/
       KOTLIN_PLUGIN_REPO_PREFIX = "org.jetbrains.kotlin"
 
       private
@@ -27,7 +32,8 @@ module Dependabot
 
         artifact = dependency.name.split(":").last
         return tmp_source if tmp_source.repo.end_with?(artifact)
-        return tmp_source if repo_has_subdir_for_dep?(tmp_source)
+
+        tmp_source if repo_has_subdir_for_dep?(tmp_source)
       end
 
       def repo_has_subdir_for_dep?(tmp_source)
@@ -36,12 +42,12 @@ module Dependabot
 
         artifact = dependency.name.split(":").last
         fetcher =
-          FileFetchers::Base.new(source: tmp_source, credentials: credentials)
+          Dependabot::Gradle::FileFetcher.new(source: tmp_source, credentials: credentials)
 
         @repo_has_subdir_for_dep[tmp_source] =
-          fetcher.send(:repo_contents, raise_errors: false).
-          select { |f| f.type == "dir" }.
-          any? { |f| artifact.end_with?(f.name) }
+          fetcher.send(:repo_contents, raise_errors: false)
+                 .select { |f| f.type == "dir" }
+                 .any? { |f| artifact&.end_with?(f.name) }
       rescue Dependabot::BranchNotFound
         tmp_source.branch = nil
         retry
@@ -94,8 +100,8 @@ module Dependabot
         end
 
         github_urls.find do |url|
-          repo = Source.from_url(url).repo
-          repo.end_with?(dependency.name.split(":").last)
+          repo = T.must(Source.from_url(url)).repo
+          repo.end_with?(T.must(dependency.name.split(":").last))
         end
       end
 
@@ -105,15 +111,13 @@ module Dependabot
         artifact_id =
           if kotlin_plugin? then "#{KOTLIN_PLUGIN_REPO_PREFIX}.#{dependency.name}.gradle.plugin"
           elsif plugin? then "#{dependency.name}.gradle.plugin"
-          else dependency.name.split(":").last
+          else
+            dependency.name.split(":").last
           end
 
-        response = Excon.get(
-          "#{maven_repo_dependency_url}/"\
-          "#{dependency.version}/"\
-          "#{artifact_id}-#{dependency.version}.pom",
-          idempotent: true,
-          **SharedHelpers.excon_defaults(headers: auth_headers)
+        response = Dependabot::RegistryClient.get(
+          url: "#{maven_repo_dependency_url}/#{dependency.version}/#{artifact_id}-#{dependency.version}.pom",
+          headers: auth_headers
         )
 
         @dependency_pom_file = Nokogiri::XML(response.body)
@@ -131,20 +135,17 @@ module Dependabot
 
         return unless artifact_id && group_id && version
 
-        response = Excon.get(
-          "#{maven_repo_url}/#{group_id.tr('.', '/')}/#{artifact_id}/"\
-          "#{version}/"\
-          "#{artifact_id}-#{version}.pom",
-          idempotent: true,
-          **SharedHelpers.excon_defaults(headers: auth_headers)
+        response = Dependabot::RegistryClient.get(
+          url: "#{maven_repo_url}/#{group_id.tr('.', '/')}/#{artifact_id}/#{version}/#{artifact_id}-#{version}.pom",
+          headers: auth_headers
         )
 
         Nokogiri::XML(response.body)
       end
 
       def maven_repo_url
-        source = dependency.requirements.
-                 find { |r| r&.fetch(:source) }&.fetch(:source)
+        source = dependency.requirements
+                           .find { |r| r.fetch(:source) }&.fetch(:source)
 
         source&.fetch(:url, nil) ||
           source&.fetch("url") ||
@@ -157,10 +158,11 @@ module Dependabot
             ["#{KOTLIN_PLUGIN_REPO_PREFIX}.#{dependency.name}",
              "#{KOTLIN_PLUGIN_REPO_PREFIX}.#{dependency.name}.gradle.plugin"]
           elsif plugin? then [dependency.name, "#{dependency.name}.gradle.plugin"]
-          else dependency.name.split(":")
+          else
+            dependency.name.split(":")
           end
 
-        "#{maven_repo_url}/#{group_id.tr('.', '/')}/#{artifact_id}"
+        "#{maven_repo_url}/#{group_id&.tr('.', '/')}/#{artifact_id}"
       end
 
       def plugin?
@@ -178,5 +180,5 @@ module Dependabot
   end
 end
 
-Dependabot::MetadataFinders.
-  register("gradle", Dependabot::Gradle::MetadataFinder)
+Dependabot::MetadataFinders
+  .register("gradle", Dependabot::Gradle::MetadataFinder)

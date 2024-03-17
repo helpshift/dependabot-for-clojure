@@ -1,42 +1,40 @@
+# typed: false
 # frozen_string_literal: true
 
 require "rspec/its"
+require "rspec/sorbet"
 require "webmock/rspec"
 require "vcr"
-require "byebug"
-require "simplecov"
-require "simplecov-console"
+require "debug"
 require "stackprof"
 require "uri"
 
 require "dependabot/dependency_file"
+require "dependabot/experiments"
+require "dependabot/registry_client"
 require_relative "dummy_package_manager/dummy"
 require_relative "warning_monkey_patch"
 
-if ENV["COVERAGE"]
-  SimpleCov::Formatter::Console.output_style = "block"
-  SimpleCov.formatter = if ENV["CI"]
-                          SimpleCov::Formatter::Console
-                        else
-                          SimpleCov::Formatter::HTMLFormatter
-                        end
-
-  SimpleCov.start do
-    add_filter "/spec/"
-
-    enable_coverage :branch
-    minimum_coverage line: 80, branch: 70
-    # TODO: Enable minimum coverage per file once outliers have been increased
-    # minimum_coverage_by_file 80
-    refuse_coverage_drop
-  end
-end
+ENV["GIT_AUTHOR_NAME"] = "dependabot-ci"
+ENV["GIT_AUTHOR_EMAIL"] = "no-reply@github.com"
+ENV["GIT_COMMITTER_NAME"] = "dependabot-ci"
+ENV["GIT_COMMITTER_EMAIL"] = "no-reply@github.com"
 
 RSpec.configure do |config|
   config.color = true
   config.order = :rand
   config.mock_with(:rspec) { |mocks| mocks.verify_partial_doubles = true }
+  config.expect_with(:rspec) { |expectations| expectations.max_formatted_output_length = 1000 }
   config.raise_errors_for_deprecations!
+  config.example_status_persistence_file_path = ".rspec_status"
+
+  config.after do
+    # Ensure we clear any cached timeouts between tests
+    Dependabot::RegistryClient.clear_cache!
+
+    # Ensure we reset any experiments between tests
+    Dependabot::Experiments.reset!
+  end
 
   config.around do |example|
     if example.metadata[:profile]
@@ -50,6 +48,8 @@ RSpec.configure do |config|
     end
   end
 end
+
+RSpec::Sorbet.allow_doubles!
 
 VCR.configure do |config|
   config.cassette_library_dir = "spec/fixtures/vcr_cassettes"
@@ -93,13 +93,14 @@ end
 # @param project [String] the project directory, located in
 # "spec/fixtures/projects"
 # @return [String] the path to the new temp repo.
-def build_tmp_repo(project, path: "projects")
+def build_tmp_repo(project,
+                   path: "projects",
+                   tmp_dir_path: Dependabot::Utils::BUMP_TMP_DIR_PATH,
+                   tmp_dir_prefix: Dependabot::Utils::BUMP_TMP_FILE_PREFIX)
   project_path = File.expand_path(File.join("spec/fixtures", path, project))
 
-  tmp_dir = Dependabot::Utils::BUMP_TMP_DIR_PATH
-  prefix = Dependabot::Utils::BUMP_TMP_FILE_PREFIX
-  Dir.mkdir(tmp_dir) unless Dir.exist?(tmp_dir)
-  tmp_repo = Dir.mktmpdir(prefix, tmp_dir)
+  FileUtils.mkdir_p(tmp_dir_path)
+  tmp_repo = Dir.mktmpdir(tmp_dir_prefix, tmp_dir_path)
   tmp_repo_path = Pathname.new(tmp_repo).expand_path
   FileUtils.mkpath(tmp_repo_path)
 
@@ -114,8 +115,8 @@ def build_tmp_repo(project, path: "projects")
   tmp_repo_path.to_s
 end
 
-def project_dependency_files(project)
-  project_path = File.expand_path(File.join("spec/fixtures/projects", project))
+def project_dependency_files(project, directory: "/")
+  project_path = File.expand_path(File.join("spec/fixtures/projects", project, directory))
 
   raise "Fixture does not exist for project: '#{project}'" unless Dir.exist?(project_path)
 
@@ -127,18 +128,11 @@ def project_dependency_files(project)
       content = File.read(filename)
       Dependabot::DependencyFile.new(
         name: filename,
-        content: content
+        content: content,
+        directory: directory
       )
     end
   end
-end
-
-def capture_stderr
-  previous_stderr = $stderr
-  $stderr = StringIO.new
-  yield
-ensure
-  $stderr = previous_stderr
 end
 
 # Spec helper to provide GitHub credentials if set via an environment variable
@@ -150,7 +144,7 @@ def github_credentials
       "type" => "git_source",
       "host" => "github.com",
       "username" => "x-access-token",
-      "password" => ENV["DEPENDABOT_TEST_ACCESS_TOKEN"] || ENV["LOCAL_GITHUB_ACCESS_TOKEN"]
+      "password" => ENV["DEPENDABOT_TEST_ACCESS_TOKEN"] || ENV.fetch("LOCAL_GITHUB_ACCESS_TOKEN", nil)
     }]
   end
 end

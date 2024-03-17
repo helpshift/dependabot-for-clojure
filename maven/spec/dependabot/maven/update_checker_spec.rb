@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -53,8 +54,8 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
   let(:security_advisories) { [] }
 
   let(:maven_central_metadata_url) do
-    "https://repo.maven.apache.org/maven2/"\
-    "com/google/guava/guava/maven-metadata.xml"
+    "https://repo.maven.apache.org/maven2/" \
+      "com/google/guava/guava/maven-metadata.xml"
   end
   let(:version_class) { Dependabot::Maven::Version }
   let(:maven_central_releases) do
@@ -62,15 +63,15 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
   end
 
   let(:maven_central_version_files_url) do
-    "https://repo.maven.apache.org/maven2/"\
-    "com/google/guava/guava/23.6-jre/guava-23.6-jre.jar"
+    "https://repo.maven.apache.org/maven2/" \
+      "com/google/guava/guava/23.6-jre/guava-23.6-jre.jar"
   end
 
   before do
-    stub_request(:get, maven_central_metadata_url).
-      to_return(status: 200, body: maven_central_releases)
-    stub_request(:head, maven_central_version_files_url).
-      to_return(status: 200)
+    stub_request(:get, maven_central_metadata_url)
+      .to_return(status: 200, body: maven_central_releases)
+    stub_request(:head, maven_central_version_files_url)
+      .to_return(status: 200)
   end
   let(:pom) do
     Dependabot::DependencyFile.new(name: "pom.xml", content: pom_body)
@@ -92,8 +93,8 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
     context "when the user wants a pre-release" do
       let(:dependency_version) { "23.0-rc1-android" }
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "com/google/guava/guava/23.7-rc1-android/guava-23.7-rc1-android.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "com/google/guava/guava/23.7-rc1-android/guava-23.7-rc1-android.jar"
       end
       let(:maven_central_version_files) do
         fixture("maven_central_version_files", "guava-23.7.html")
@@ -109,13 +110,13 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       let(:dependency_name) { "commons-collections:commons-collections" }
       let(:dependency_version) { "3.1" }
       let(:maven_central_metadata_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "commons-collections/commons-collections/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "commons-collections/commons-collections/maven-metadata.xml"
       end
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "commons-collections/commons-collections/3.2.2/"\
-        "commons-collections-3.2.2.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "commons-collections/commons-collections/3.2.2/" \
+          "commons-collections-3.2.2.jar"
       end
       let(:maven_central_version_files) do
         fixture(
@@ -129,9 +130,9 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       context "and that's what we're using" do
         let(:dependency_version) { "20030418" }
         let(:maven_central_version_files_url) do
-          "https://repo.maven.apache.org/maven2/"\
-          "commons-collections/commons-collections/20040616/"\
-          "commons-collections-20040616.jar"
+          "https://repo.maven.apache.org/maven2/" \
+            "commons-collections/commons-collections/20040616/" \
+            "commons-collections-20040616.jar"
         end
         let(:maven_central_version_files) do
           fixture(
@@ -147,8 +148,8 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
     context "when the current version isn't normal" do
       let(:dependency_version) { "RELEASE802" }
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "com/google/guava/guava/23.0/guava-23.0.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "com/google/guava/guava/23.0/guava-23.0.jar"
       end
       let(:maven_central_version_files) do
         fixture("maven_central_version_files", "guava-23.0.html")
@@ -159,12 +160,12 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
     context "when the version comes from a property" do
       let(:pom_body) { fixture("poms", "property_pom_single.xml") }
       let(:maven_central_metadata_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/maven-metadata.xml"
       end
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/23.0/spring-beans-23.0.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/23.0/spring-beans-23.0.jar"
       end
       let(:maven_central_version_files) do
         fixture("maven_central_version_files", "spring-beans-23.0.html")
@@ -194,10 +195,10 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
     subject { checker.lowest_security_fix_version }
 
     before do
-      version_files_url = "https://repo.maven.apache.org/maven2/com/google/"\
+      version_files_url = "https://repo.maven.apache.org/maven2/com/google/" \
                           "guava/guava/23.4-jre/guava-23.4-jre.jar"
-      stub_request(:head, version_files_url).
-        to_return(status: 200)
+      stub_request(:head, version_files_url)
+        .to_return(status: 200)
     end
 
     it "finds the lowest available version" do
@@ -216,10 +217,10 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       end
 
       before do
-        version_files_url = "https://repo.maven.apache.org/maven2/com/google/"\
+        version_files_url = "https://repo.maven.apache.org/maven2/com/google/" \
                             "guava/guava/23.5-jre/guava-23.5-jre.jar"
-        stub_request(:head, version_files_url).
-          to_return(status: 200)
+        stub_request(:head, version_files_url)
+          .to_return(status: 200)
       end
 
       it "finds the lowest available non-vulnerable version" do
@@ -242,10 +243,10 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
     end
 
     before do
-      version_files_url = "https://repo.maven.apache.org/maven2/com/google/"\
+      version_files_url = "https://repo.maven.apache.org/maven2/com/google/" \
                           "guava/guava/23.5-jre/guava-23.5-jre.jar"
-      stub_request(:head, version_files_url).
-        to_return(status: 200)
+      stub_request(:head, version_files_url)
+        .to_return(status: 200)
     end
 
     it "finds the lowest available non-vulnerable version" do
@@ -268,12 +269,12 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
     context "when the version comes from a property" do
       let(:pom_body) { fixture("poms", "property_pom_single.xml") }
       let(:maven_central_metadata_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/maven-metadata.xml"
       end
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/23.0/spring-beans-23.0.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/23.0/spring-beans-23.0.jar"
       end
       let(:maven_central_version_files) do
         fixture("maven_central_version_files", "spring-beans-23.0.html")
@@ -319,13 +320,13 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       context "for a repeated dependency" do
         let(:pom_body) { fixture("poms", "repeated_pom.xml") }
         let(:maven_central_metadata_url) do
-          "https://repo.maven.apache.org/maven2/"\
-          "org/apache/maven/plugins/maven-javadoc-plugin/maven-metadata.xml"
+          "https://repo.maven.apache.org/maven2/" \
+            "org/apache/maven/plugins/maven-javadoc-plugin/maven-metadata.xml"
         end
         let(:maven_central_version_files_url) do
-          "https://repo.maven.apache.org/maven2/"\
-          "org/apache/maven/plugins/maven-javadoc-plugin/23.0/"\
-          "maven-javadoc-plugin-23.0.jar"
+          "https://repo.maven.apache.org/maven2/" \
+            "org/apache/maven/plugins/maven-javadoc-plugin/23.0/" \
+            "maven-javadoc-plugin-23.0.jar"
         end
         let(:maven_central_version_files) do
           fixture(
@@ -465,12 +466,12 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
         let(:dependency_name) { "org.springframework:spring-aop" }
         let(:dependency_version) { "2.5.6" }
         let(:maven_central_metadata_url) do
-          "https://repo.maven.apache.org/maven2/"\
-          "org/springframework/spring-aop/maven-metadata.xml"
+          "https://repo.maven.apache.org/maven2/" \
+            "org/springframework/spring-aop/maven-metadata.xml"
         end
         let(:maven_central_version_files_url) do
-          "https://repo.maven.apache.org/maven2/"\
-          "org/springframework/spring-aop/23.0/spring-aop-23.0.jar"
+          "https://repo.maven.apache.org/maven2/" \
+            "org/springframework/spring-aop/23.0/spring-aop-23.0.jar"
         end
         let(:maven_central_version_files) do
           fixture(
@@ -500,12 +501,12 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
         ]
       end
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "com/google/guava/guava/20.0/guava-20.0.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "com/google/guava/guava/20.0/guava-20.0.jar"
       end
       let(:maven_central_version_files) do
-        fixture("maven_central_version_files", "guava-23.6.html").
-          gsub("23.6-jre", "20.0")
+        fixture("maven_central_version_files", "guava-23.6.html")
+          .gsub("23.6-jre", "20.0")
       end
 
       it { is_expected.to eq(version_class.new("20.0")) }
@@ -516,17 +517,17 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
     subject { checker.updated_requirements.first }
 
     it "delegates to the RequirementsUpdater" do
-      expect(described_class::RequirementsUpdater).
-        to receive(:new).
-        with(
+      expect(described_class::RequirementsUpdater)
+        .to receive(:new)
+        .with(
           requirements: dependency_requirements,
           latest_version: "23.6-jre",
           source_url: "https://repo.maven.apache.org/maven2",
           properties_to_update: []
-        ).
-        and_call_original
-      expect(checker.updated_requirements).
-        to eq(
+        )
+        .and_call_original
+      expect(checker.updated_requirements)
+        .to eq(
           [{
             file: "pom.xml",
             requirement: "23.6-jre",
@@ -552,26 +553,26 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
         ]
       end
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "com/google/guava/guava/20.0/guava-20.0.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "com/google/guava/guava/20.0/guava-20.0.jar"
       end
       let(:maven_central_version_files) do
-        fixture("maven_central_version_files", "guava-23.6.html").
-          gsub("23.6-jre", "20.0")
+        fixture("maven_central_version_files", "guava-23.6.html")
+          .gsub("23.6-jre", "20.0")
       end
 
       it "delegates to the RequirementsUpdater" do
-        expect(described_class::RequirementsUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::RequirementsUpdater)
+          .to receive(:new)
+          .with(
             requirements: dependency_requirements,
             latest_version: "20.0",
             source_url: "https://repo.maven.apache.org/maven2",
             properties_to_update: []
-          ).
-          and_call_original
-        expect(checker.updated_requirements).
-          to eq(
+          )
+          .and_call_original
+        expect(checker.updated_requirements)
+          .to eq(
             [{
               file: "pom.xml",
               requirement: "20.0",
@@ -604,16 +605,16 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       let(:dependency_name) { "org.springframework:spring-beans" }
       let(:pom_body) { fixture("poms", "property_pom.xml") }
       let(:maven_central_metadata_url_beans) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/maven-metadata.xml"
       end
       let(:maven_central_metadata_url_context) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-context/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-context/maven-metadata.xml"
       end
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/23.6-jre/spring-beans-23.6-jre.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/23.6-jre/spring-beans-23.6-jre.jar"
       end
       let(:maven_central_version_files) do
         fixture("maven_central_version_files", "spring-beans-23.6.html")
@@ -634,25 +635,25 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       end
 
       before do
-        allow(checker).
-          to receive(:latest_version).
-          and_return(version_class.new("23.6-jre"))
-        stub_request(:get, maven_central_metadata_url_beans).
-          to_return(
+        allow(checker)
+          .to receive(:latest_version)
+          .and_return(version_class.new("23.6-jre"))
+        stub_request(:get, maven_central_metadata_url_beans)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
-        stub_request(:get, maven_central_metadata_url_context).
-          to_return(
+        stub_request(:get, maven_central_metadata_url_context)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
       end
 
       it "delegates to the PropertyUpdater" do
-        expect(described_class::PropertyUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::PropertyUpdater)
+          .to receive(:new)
+          .with(
             dependency: dependency,
             dependency_files: dependency_files,
             credentials: credentials,
@@ -661,8 +662,8 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
               version: version_class.new("23.6-jre"),
               source_url: "https://repo.maven.apache.org/maven2"
             }
-          ).
-          and_call_original
+          )
+          .and_call_original
         expect(subject).to eq(true)
       end
     end
@@ -675,16 +676,16 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       let(:dependency_name) { "org.springframework:spring-beans" }
       let(:pom_body) { fixture("poms", "property_pom.xml") }
       let(:maven_central_metadata_url_beans) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/maven-metadata.xml"
       end
       let(:maven_central_metadata_url_context) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-context/maven-metadata.xml"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-context/maven-metadata.xml"
       end
       let(:maven_central_version_files_url) do
-        "https://repo.maven.apache.org/maven2/"\
-        "org/springframework/spring-beans/23.6-jre/spring-beans-23.6-jre.jar"
+        "https://repo.maven.apache.org/maven2/" \
+          "org/springframework/spring-beans/23.6-jre/spring-beans-23.6-jre.jar"
       end
       let(:maven_central_version_files) do
         fixture("maven_central_version_files", "spring-beans-23.6.html")
@@ -704,25 +705,25 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       end
 
       before do
-        allow(checker).
-          to receive(:latest_version).
-          and_return(version_class.new("23.6-jre"))
-        stub_request(:get, maven_central_metadata_url_beans).
-          to_return(
+        allow(checker)
+          .to receive(:latest_version)
+          .and_return(version_class.new("23.6-jre"))
+        stub_request(:get, maven_central_metadata_url_beans)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
-        stub_request(:get, maven_central_metadata_url_context).
-          to_return(
+        stub_request(:get, maven_central_metadata_url_context)
+          .to_return(
             status: 200,
             body: fixture("maven_central_metadata", "with_release.xml")
           )
       end
 
       it "delegates to the PropertyUpdater" do
-        expect(described_class::PropertyUpdater).
-          to receive(:new).
-          with(
+        expect(described_class::PropertyUpdater)
+          .to receive(:new)
+          .with(
             dependency: dependency,
             dependency_files: dependency_files,
             credentials: credentials,
@@ -731,8 +732,8 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
               version: version_class.new("23.6-jre"),
               source_url: "https://repo.maven.apache.org/maven2"
             }
-          ).
-          and_call_original
+          )
+          .and_call_original
         expect(subject).to eq(
           [
             Dependabot::Dependency.new(
@@ -847,7 +848,7 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
       end
       it { is_expected.to eq(true) }
 
-      context "that inherits from a parent POM downloaded for support" do
+      context "that inherits from a parent POM" do
         let(:dependency_files) { [pom, parent_pom] }
         let(:pom_body) { fixture("poms", "sigtran-map.pom") }
         let(:parent_pom) do
@@ -872,19 +873,19 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
           }]
         end
 
-        it { is_expected.to eq(false) }
+        it { is_expected.to eq(true) }
       end
 
       context "that inherits from a remote POM" do
         let(:pom_body) { fixture("poms", "remote_parent_pom.xml") }
 
         let(:struts_apps_maven_url) do
-          "https://repo.maven.apache.org/maven2/"\
-          "org/apache/struts/struts2-apps/2.5.10/struts2-apps-2.5.10.pom"
+          "https://repo.maven.apache.org/maven2/" \
+            "org/apache/struts/struts2-apps/2.5.10/struts2-apps-2.5.10.pom"
         end
         let(:struts_parent_maven_url) do
-          "https://repo.maven.apache.org/maven2/"\
-          "org/apache/struts/struts2-parent/2.5.10/struts2-parent-2.5.10.pom"
+          "https://repo.maven.apache.org/maven2/" \
+            "org/apache/struts/struts2-parent/2.5.10/struts2-parent-2.5.10.pom"
         end
         let(:struts_apps_maven_response) do
           fixture("poms", "struts2-apps-2.5.10.pom")
@@ -894,10 +895,10 @@ RSpec.describe Dependabot::Maven::UpdateChecker do
         end
 
         before do
-          stub_request(:get, struts_apps_maven_url).
-            to_return(status: 200, body: struts_apps_maven_response)
-          stub_request(:get, struts_parent_maven_url).
-            to_return(status: 200, body: struts_parent_maven_response)
+          stub_request(:get, struts_apps_maven_url)
+            .to_return(status: 200, body: struts_apps_maven_response)
+          stub_request(:get, struts_parent_maven_url)
+            .to_return(status: 200, body: struts_parent_maven_response)
         end
 
         let(:dependency_name) { "org.apache.logging.log4j:log4j-api" }

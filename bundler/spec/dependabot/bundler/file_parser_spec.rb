@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -163,7 +164,7 @@ RSpec.describe Dependabot::Bundler::FileParser do
 
       its(:length) { is_expected.to eq(5) }
 
-      describe "an untagged dependency" do
+      describe "an untagged dependency", :bundler_v1_only do
         subject { dependencies.find { |d| d.name == "uk_phone_numbers" } }
         let(:expected_requirements) do
           [{
@@ -171,9 +172,32 @@ RSpec.describe Dependabot::Bundler::FileParser do
             file: "Gemfile",
             source: {
               type: "git",
-              url: "http://github.com/dependabot-fixtures/uk_phone_numbers",
-              branch: "master",
+              url: "https://github.com/dependabot-fixtures/uk_phone_numbers",
+              branch: nil,
               ref: "master"
+            },
+            groups: [:default]
+          }]
+        end
+
+        it { is_expected.to be_a(Dependabot::Dependency) }
+        its(:requirements) { is_expected.to eq(expected_requirements) }
+        its(:version) do
+          is_expected.to eq("1530024bd6a68d36ac18e04836ce110e0d433c36")
+        end
+      end
+
+      describe "an untagged dependency", :bundler_v2_only do
+        subject { dependencies.find { |d| d.name == "uk_phone_numbers" } }
+        let(:expected_requirements) do
+          [{
+            requirement: ">= 0",
+            file: "Gemfile",
+            source: {
+              type: "git",
+              url: "https://github.com/dependabot-fixtures/uk_phone_numbers",
+              branch: nil,
+              ref: nil
             },
             groups: [:default]
           }]
@@ -195,7 +219,7 @@ RSpec.describe Dependabot::Bundler::FileParser do
             source: {
               type: "git",
               url: "git@github.com:dependabot-fixtures/que",
-              branch: "master",
+              branch: nil,
               ref: "v0.11.6"
             },
             groups: [:default]
@@ -206,6 +230,31 @@ RSpec.describe Dependabot::Bundler::FileParser do
         its(:requirements) { is_expected.to eq(expected_requirements) }
         its(:version) do
           is_expected.to eq("997d1a6ee76a1f254fd72ce16acbc8d347fcaee3")
+        end
+      end
+
+      describe "a github dependency", :bundler_v1_only do
+        let(:dependency_files) { bundler_project_dependency_files("github_source") }
+
+        subject { dependencies.find { |d| d.name == "business" } }
+        let(:expected_requirements) do
+          [{
+            requirement: ">= 0",
+            file: "Gemfile",
+            source: {
+              type: "git",
+              url: "https://github.com/dependabot-fixtures/business.git",
+              branch: nil,
+              ref: "master"
+            },
+            groups: [:default]
+          }]
+        end
+
+        it { is_expected.to be_a(Dependabot::Dependency) }
+        its(:requirements) { is_expected.to eq(expected_requirements) }
+        its(:version) do
+          is_expected.to eq("d31e445215b5af70c1604715d97dd953e868380e")
         end
       end
 
@@ -220,8 +269,8 @@ RSpec.describe Dependabot::Bundler::FileParser do
             source: {
               type: "git",
               url: "https://github.com/dependabot-fixtures/business.git",
-              branch: "master",
-              ref: "master"
+              branch: nil,
+              ref: nil
             },
             groups: [:default]
           }]
@@ -234,32 +283,7 @@ RSpec.describe Dependabot::Bundler::FileParser do
         end
       end
 
-      describe "a github dependency", :bundler_v1_only do
-        let(:dependency_files) { bundler_project_dependency_files("github_source") }
-
-        subject { dependencies.find { |d| d.name == "business" } }
-        let(:expected_requirements) do
-          [{
-            requirement: ">= 0",
-            file: "Gemfile",
-            source: {
-              type: "git",
-              url: "git://github.com/dependabot-fixtures/business.git",
-              branch: "master",
-              ref: "master"
-            },
-            groups: [:default]
-          }]
-        end
-
-        it { is_expected.to be_a(Dependabot::Dependency) }
-        its(:requirements) { is_expected.to eq(expected_requirements) }
-        its(:version) do
-          is_expected.to eq("d31e445215b5af70c1604715d97dd953e868380e")
-        end
-      end
-
-      context "with a subdependency of a git source" do
+      context "with a subdependency of a git source", :bundler_v1_only do
         let(:dependency_files) { bundler_project_dependency_files("git_source_undeclared") }
 
         subject { dependencies.find { |d| d.name == "kaminari-actionview" } }
@@ -270,8 +294,31 @@ RSpec.describe Dependabot::Bundler::FileParser do
             source: {
               type: "git",
               url: "https://github.com/dependabot-fixtures/kaminari",
-              branch: "master",
+              branch: nil,
               ref: "master"
+            },
+            groups: [:default]
+          }]
+        end
+
+        it { is_expected.to be_a(Dependabot::Dependency) }
+        its(:name) { is_expected.to eq("kaminari-actionview") }
+        its(:requirements) { is_expected.to eq(expected_requirements) }
+      end
+
+      context "with a subdependency of a git source", :bundler_v2_only do
+        let(:dependency_files) { bundler_project_dependency_files("git_source_undeclared") }
+
+        subject { dependencies.find { |d| d.name == "kaminari-actionview" } }
+        let(:expected_requirements) do
+          [{
+            requirement: ">= 0",
+            file: "Gemfile",
+            source: {
+              type: "git",
+              url: "https://github.com/dependabot-fixtures/kaminari",
+              branch: nil,
+              ref: nil
             },
             groups: [:default]
           }]
@@ -331,10 +378,7 @@ RSpec.describe Dependabot::Bundler::FileParser do
 
     context "with a path-based dependency" do
       let(:dependency_files) do
-        bundler_project_dependency_files("path_source").tap do |files|
-          gemspec = files.find { |f| f.name == "plugins/example/example.gemspec" }
-          gemspec.support_file = true
-        end
+        bundler_project_dependency_files("path_source")
       end
 
       let(:expected_requirements) do
@@ -346,11 +390,10 @@ RSpec.describe Dependabot::Bundler::FileParser do
         }]
       end
 
-      its(:length) { is_expected.to eq(5) }
+      its(:length) { is_expected.to eq(15) }
 
-      it "includes the path dependency" do
-        path_dep = dependencies.find { |dep| dep.name == "example" }
-        expect(path_dep.requirements).to eq(expected_requirements)
+      it "does not include the path dependency" do
+        expect(dependencies.map(&:name)).to_not include("example")
       end
 
       it "includes the path dependency's sub-dependency" do
@@ -363,8 +406,7 @@ RSpec.describe Dependabot::Bundler::FileParser do
         let(:dependency_files) { bundler_project_dependency_files("version_specified_gemfile_specification") }
 
         it "includes the path dependency" do
-          path_dep = dependencies.find { |dep| dep.name == "example" }
-          expect(path_dep.requirements).to eq(expected_requirements)
+          expect(dependencies.map(&:name)).to_not include("example")
         end
       end
     end
@@ -398,11 +440,11 @@ RSpec.describe Dependabot::Bundler::FileParser do
       let(:dependency_files) { bundler_project_dependency_files("specified_plugin_source") }
 
       it "raises a helpful error" do
-        expect { parser.parse }.
-          to raise_error do |error|
+        expect { parser.parse }
+          .to raise_error do |error|
           expect(error.class).to eq(Dependabot::DependencyFileNotEvaluatable)
-          expect(error.message).
-            to include("No plugin sources available for aws-s3")
+          expect(error.message)
+            .to include("No plugin sources available for aws-s3")
         end
       end
     end
@@ -433,8 +475,8 @@ RSpec.describe Dependabot::Bundler::FileParser do
       let(:dependency_files) { bundler_project_dependency_files("unevaluatable_japanese_gemfile") }
 
       it "raises a helpful error" do
-        expect { parser.parse }.
-          to raise_error do |error|
+        expect { parser.parse }
+          .to raise_error do |error|
           expect(error.class).to eq(Dependabot::DependencyFileNotEvaluatable)
           expect(error.message.encoding.to_s).to eq("UTF-8")
         end
@@ -444,12 +486,12 @@ RSpec.describe Dependabot::Bundler::FileParser do
         let(:dependency_files) { bundler_project_dependency_files("exec_error_gemfile") }
 
         it "raises a helpful error" do
-          expect { parser.parse }.
-            to raise_error do |error|
-            expect(error.message).
-              to start_with("Error evaluating your dependency files")
-            expect(error.class).
-              to eq(Dependabot::DependencyFileNotEvaluatable)
+          expect { parser.parse }
+            .to raise_error do |error|
+            expect(error.message)
+              .to start_with("Error evaluating your dependency files")
+            expect(error.class)
+              .to eq(Dependabot::DependencyFileNotEvaluatable)
           end
         end
       end
@@ -465,8 +507,8 @@ RSpec.describe Dependabot::Bundler::FileParser do
       let(:dependency_files) { bundler_project_dependency_files("includes_requires_gemfile") }
 
       it "blows up with a useful error" do
-        expect { parser.parse }.
-          to raise_error(Dependabot::DependencyFileNotEvaluatable)
+        expect { parser.parse }
+          .to raise_error(Dependabot::DependencyFileNotEvaluatable)
       end
     end
 
@@ -496,11 +538,11 @@ RSpec.describe Dependabot::Bundler::FileParser do
         let(:dependency_files) { bundler_project_dependency_files("imports_gemspec_from_path") }
 
         it "fetches details from the gemspec" do
-          expect(dependencies.map(&:name)).
-            to match_array(%w(business statesman))
+          expect(dependencies.map(&:name))
+            .to match_array(%w(business statesman))
           expect(dependencies.first.name).to eq("business")
-          expect(dependencies.first.requirements).
-            to match_array(
+          expect(dependencies.first.requirements)
+            .to match_array(
               [{
                 file: "Gemfile",
                 requirement: "~> 1.4.0",
@@ -519,22 +561,22 @@ RSpec.describe Dependabot::Bundler::FileParser do
           let(:dependency_files) { bundler_project_dependency_files("imports_gemspec_version_as_float") }
 
           it "includes the gemspec dependency" do
-            expect(dependencies.map(&:name)).
-              to match_array(%w(business statesman))
+            expect(dependencies.map(&:name))
+              .to match_array(%w(business statesman))
           end
         end
       end
 
-      context "with an unparseable git dep that also appears in the gemspec" do
+      context "with an unparseable git dep that also appears in the gemspec", :bundler_v1_only do
         let(:dependency_files) { bundler_project_dependency_files("git_source_unparseable") }
 
         it "includes source details on the gemspec requirement" do
           expect(dependencies.map(&:name)).to match_array(%w(business))
           expect(dependencies.first.name).to eq("business")
-          expect(dependencies.first.version).
-            to eq("1378a2b0b446d991b7567efbc7eeeed2720e4d8f")
-          expect(dependencies.first.requirements).
-            to match_array(
+          expect(dependencies.first.version)
+            .to eq("1378a2b0b446d991b7567efbc7eeeed2720e4d8f")
+          expect(dependencies.first.requirements)
+            .to match_array(
               [{
                 file: "example.gemspec",
                 requirement: "~> 1.0",
@@ -542,8 +584,29 @@ RSpec.describe Dependabot::Bundler::FileParser do
                 source: {
                   type: "git",
                   url: "git@github.com:dependabot-fixtures/business",
-                  branch: "master",
+                  branch: nil,
                   ref: "master"
+                }
+              }]
+            )
+        end
+
+        it "includes source details on the gemspec requirement", :bundler_v2_only do
+          expect(dependencies.map(&:name)).to match_array(%w(business))
+          expect(dependencies.first.name).to eq("business")
+          expect(dependencies.first.version)
+            .to eq("1378a2b0b446d991b7567efbc7eeeed2720e4d8f")
+          expect(dependencies.first.requirements)
+            .to match_array(
+              [{
+                file: "example.gemspec",
+                requirement: "~> 1.0",
+                groups: ["runtime"],
+                source: {
+                  type: "git",
+                  url: "git@github.com:dependabot-fixtures/business",
+                  branch: nil,
+                  ref: nil
                 }
               }]
             )
@@ -554,10 +617,10 @@ RSpec.describe Dependabot::Bundler::FileParser do
         let(:dependency_files) { bundler_project_dependency_files("imports_two_gemspecs") }
 
         it "fetches details from both gemspecs" do
-          expect(dependencies.map(&:name)).
-            to match_array(%w(business statesman))
-          expect(dependencies.map(&:requirements)).
-            to match_array(
+          expect(dependencies.map(&:name))
+            .to match_array(%w(business statesman))
+          expect(dependencies.map(&:requirements))
+            .to match_array(
               [
                 [{
                   requirement: "~> 1.0",
@@ -580,18 +643,18 @@ RSpec.describe Dependabot::Bundler::FileParser do
         let(:dependency_files) { bundler_project_dependency_files("imports_gemspec_imports_gemspec_large") }
 
         it "includes details of each declaration" do
-          expect(dependencies.select(&:top_level?).count).to eq(13)
+          expect(dependencies.count(&:top_level?)).to eq(13)
         end
 
         it "includes details of each sub-dependency" do
-          expect(dependencies.reject(&:top_level?).count).to eq(23)
+          expect(dependencies.count { |dep| !dep.top_level? }).to eq(23)
 
           diff_lcs = dependencies.find { |d| d.name == "diff-lcs" }
           expect(diff_lcs.subdependency_metadata).to eq([{ production: false }])
 
           addressable = dependencies.find { |d| d.name == "addressable" }
-          expect(addressable.subdependency_metadata).
-            to eq([{ production: true }])
+          expect(addressable.subdependency_metadata)
+            .to eq([{ production: true }])
         end
 
         describe "a runtime gemspec dependency" do
@@ -632,7 +695,7 @@ RSpec.describe Dependabot::Bundler::FileParser do
           let(:dependency_files) { bundler_project_dependency_files("imports_gemspec_with_require") }
 
           it "includes details of each declaration" do
-            expect(dependencies.select(&:top_level?).count).to eq(13)
+            expect(dependencies.count(&:top_level?)).to eq(13)
           end
         end
 
@@ -640,9 +703,23 @@ RSpec.describe Dependabot::Bundler::FileParser do
           let(:dependency_files) { bundler_project_dependency_files("imports_gemspec_unevaluatable") }
 
           it "raises a helpful error" do
-            expect { parser.parse }.
-              to raise_error(Dependabot::DependencyFileNotEvaluatable)
+            expect { parser.parse }
+              .to raise_error(Dependabot::DependencyFileNotEvaluatable)
           end
+        end
+      end
+    end
+
+    context "with a gemspec that loads dependencies from another gemspec dynamically" do
+      let(:dependency_files) { bundler_project_dependency_files("gemspec_loads_another") }
+
+      describe "a development dependency loaded from an external gemspec" do
+        subject { dependencies.find { |d| d.name == "rake" } }
+
+        it "is only loaded with its own gemspec as requirement" do
+          expect(subject.name).to eq("rake")
+          expect(subject.requirements.size).to eq(1)
+          expect(subject.requirements.first[:file]).to eq("another.gemspec")
         end
       end
     end
@@ -672,8 +749,8 @@ RSpec.describe Dependabot::Bundler::FileParser do
                 source: {
                   type: "git",
                   url: "https://github.com/dependabot-fixtures/business",
-                  branch: "master",
-                  ref: "master"
+                  branch: nil,
+                  ref: nil
                 },
                 groups: [:default]
               }
@@ -748,19 +825,6 @@ RSpec.describe Dependabot::Bundler::FileParser do
           expect(dependencies.map(&:name)).to_not include("statesman")
         end
       end
-    end
-
-    it "instruments the package manager version" do
-      events = []
-      Dependabot.subscribe(Dependabot::Notifications::FILE_PARSER_PACKAGE_MANAGER_VERSION_PARSED) do |*args|
-        events << ActiveSupport::Notifications::Event.new(*args)
-      end
-
-      parser.parse
-
-      expect(events.last.payload).to eq(
-        { ecosystem: "bundler", package_managers: { "bundler" => PackageManagerHelper.bundler_major_version } }
-      )
     end
   end
 end

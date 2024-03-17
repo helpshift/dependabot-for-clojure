@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "bundler/source"
@@ -35,8 +36,8 @@ module Bundler
 
       def serialize_gemspecs_in(destination)
         original_load_paths = $LOAD_PATH.dup
-        reduced_load_paths = original_load_paths.
-                             reject { |p| p.include?("/gems/") }
+        reduced_load_paths = original_load_paths
+                             .reject { |p| p.include?("/gems/") }
 
         $LOAD_PATH.shift until $LOAD_PATH.empty?
         reduced_load_paths.each { |p| $LOAD_PATH << p }
@@ -51,7 +52,7 @@ module Bundler
 
           Bundler.rubygems.set_installed_by_version(spec)
           Bundler.rubygems.validate(spec)
-          File.open(spec_path, "wb") { |file| file.write(spec.to_ruby) }
+          File.binwrite(spec_path, spec.to_ruby)
         end
         $LOAD_PATH.shift until $LOAD_PATH.empty?
         original_load_paths.each { |p| $LOAD_PATH << p }

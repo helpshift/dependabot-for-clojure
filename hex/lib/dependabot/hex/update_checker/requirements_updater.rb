@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/hex/version"
@@ -8,10 +9,10 @@ module Dependabot
   module Hex
     class UpdateChecker
       class RequirementsUpdater
-        OPERATORS = />=|<=|>|<|==|~>/.freeze
-        AND_SEPARATOR = /\s+and\s+/.freeze
-        OR_SEPARATOR = /\s+or\s+/.freeze
-        SEPARATOR = /#{AND_SEPARATOR}|#{OR_SEPARATOR}/.freeze
+        OPERATORS = />=|<=|>|<|==|~>/
+        AND_SEPARATOR = /\s+and\s+/
+        OR_SEPARATOR = /\s+or\s+/
+        SEPARATOR = /#{AND_SEPARATOR}|#{OR_SEPARATOR}/
 
         def initialize(requirements:, latest_resolvable_version:,
                        updated_source:)
@@ -40,8 +41,8 @@ module Dependabot
           return req if req_satisfied_by_latest_resolvable?(req[:requirement])
 
           or_string_reqs = req[:requirement].split(OR_SEPARATOR)
-          last_string_reqs = or_string_reqs.last.split(AND_SEPARATOR).
-                             map(&:strip)
+          last_string_reqs = or_string_reqs.last.split(AND_SEPARATOR)
+                                           .map(&:strip)
 
           new_requirement =
             if last_string_reqs.any? { |r| r.match(/^(?:\d|=)/) }
@@ -70,8 +71,8 @@ module Dependabot
         end
 
         def req_satisfied_by_latest_resolvable?(requirement_string)
-          ruby_requirements(requirement_string).
-            any? { |r| r.satisfied_by?(latest_resolvable_version) }
+          ruby_requirements(requirement_string)
+            .any? { |r| r.satisfied_by?(latest_resolvable_version) }
         end
 
         def ruby_requirements(requirement_string)
@@ -105,7 +106,7 @@ module Dependabot
               when "!="
                 []
               else
-                raise "Unexpected operation for unsatisfied Gemfile "\
+                raise "Unexpected operation for unsatisfied Gemfile " \
                       "requirement: #{op}"
               end
             end
@@ -136,7 +137,8 @@ module Dependabot
               version_to_be_permitted.segments[index]
             elsif index == index_to_update
               version_to_be_permitted.segments[index] + 1
-            else 0
+            else
+              0
             end
           end
 

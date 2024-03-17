@@ -1,31 +1,46 @@
+# typed: false
 # frozen_string_literal: true
+
+require "fileutils"
+require "tmpdir"
 
 require "spec_helper"
 require "dependabot/shared_helpers"
+require "dependabot/simple_instrumentor"
+require "dependabot/workspace"
 
 RSpec.describe Dependabot::SharedHelpers do
   let(:spec_root) { File.join(File.dirname(__FILE__), "..") }
+  let(:tmp) { Dependabot::Utils::BUMP_TMP_DIR_PATH }
 
   describe ".in_a_temporary_directory" do
+    def existing_tmp_folders
+      Dir.glob(File.join(tmp, "*"))
+    end
+
     subject(:in_a_temporary_directory) do
       Dependabot::SharedHelpers.in_a_temporary_directory { output_dir.call }
     end
 
     let(:output_dir) { -> { Dir.pwd } }
     it "runs inside the temporary directory created" do
-      expect(in_a_temporary_directory).to match(%r{tmp\/dependabot_+.})
+      expect(in_a_temporary_directory).to match(%r{#{tmp}\/dependabot_+.})
     end
 
     it "yields the path to the temporary directory created" do
-      expect { |b| described_class.in_a_temporary_directory(&b) }.
-        to yield_with_args(Pathname)
+      expect { |b| described_class.in_a_temporary_directory(&b) }
+        .to yield_with_args(Pathname)
+    end
+
+    it "removes the temporary directory after use" do
+      expect { in_a_temporary_directory }.not_to(change { existing_tmp_folders })
     end
   end
 
   describe ".in_a_temporary_repo_directory" do
     subject(:in_a_temporary_repo_directory) do
-      Dependabot::SharedHelpers.
-        in_a_temporary_repo_directory(directory, repo_contents_path) do
+      Dependabot::SharedHelpers
+        .in_a_temporary_repo_directory(directory, repo_contents_path) do
           on_create.call
         end
     end
@@ -34,6 +49,10 @@ RSpec.describe Dependabot::SharedHelpers do
     let(:on_create) { -> { Dir.pwd } }
     let(:project_name) { "vendor_gems" }
     let(:repo_contents_path) { build_tmp_repo(project_name) }
+
+    after do
+      FileUtils.rm_rf(repo_contents_path)
+    end
 
     it "runs inside the temporary repo directory" do
       expect(in_a_temporary_repo_directory).to eq(repo_contents_path)
@@ -44,8 +63,8 @@ RSpec.describe Dependabot::SharedHelpers do
       let(:on_create) { -> { `ls .` } }
 
       it "yields the directory contents" do
-        expect(in_a_temporary_repo_directory).
-          to include("business-1.4.0.gem")
+        expect(in_a_temporary_repo_directory)
+          .to include("business-1.4.0.gem")
       end
     end
 
@@ -53,8 +72,8 @@ RSpec.describe Dependabot::SharedHelpers do
       let(:directory) { "missing/directory" }
 
       it "creates the missing directory " do
-        expect(in_a_temporary_repo_directory).
-          to eq(Pathname.new(repo_contents_path).join(directory).to_s)
+        expect(in_a_temporary_repo_directory)
+          .to eq(Pathname.new(repo_contents_path).join(directory).to_s)
       end
     end
 
@@ -68,21 +87,40 @@ RSpec.describe Dependabot::SharedHelpers do
       let(:on_create) { -> { `stat some-file.txt 2>&1` } }
 
       it "resets the changes " do
-        expect(in_a_temporary_repo_directory).
-          to include("No such file or directory")
+        expect(in_a_temporary_repo_directory)
+          .to include("No such file or directory")
       end
     end
 
     context "without repo_contents_path" do
       before do
-        allow(described_class).to receive(:in_a_temporary_directory).
-          and_call_original
+        allow(described_class).to receive(:in_a_temporary_directory)
+          .and_call_original
       end
 
       it "falls back to creating a temporary directory" do
-        expect { |b| described_class.in_a_temporary_repo_directory(&b) }.
-          to yield_with_args(Pathname)
+        expect { |b| described_class.in_a_temporary_repo_directory(&b) }
+          .to yield_with_args(Pathname)
         expect(described_class).to have_received(:in_a_temporary_directory)
+      end
+    end
+
+    context "when there is an active workspace" do
+      let(:project_name) { "simple" }
+      let(:repo_contents_path) { build_tmp_repo(project_name, tmp_dir_path: Dir.tmpdir) }
+      let(:workspace_path) { Pathname.new(File.join(repo_contents_path, directory)).expand_path }
+      let(:workspace) { Dependabot::Workspace::Git.new(workspace_path) }
+
+      before do
+        allow(Dependabot::Workspace).to receive(:active_workspace).and_return(workspace)
+      end
+
+      it "delegates to the workspace" do
+        expect(workspace).to receive(:change).and_call_original
+
+        expect do |b|
+          described_class.in_a_temporary_repo_directory(directory, repo_contents_path, &b)
+        end.to yield_with_args(Pathname)
       end
     end
   end
@@ -123,12 +161,12 @@ RSpec.describe Dependabot::SharedHelpers do
         let(:function) { "useful_error" }
 
         it "raises a HelperSubprocessFailed error with stderr output" do
-          expect { run_subprocess }.
-            to raise_error(
+          expect { run_subprocess }
+            .to raise_error(
               Dependabot::SharedHelpers::HelperSubprocessFailed
             ) do |error|
-              expect(error.message).
-                to include("Some useful error")
+              expect(error.message)
+                .to include("Some useful error")
             end
         end
       end
@@ -138,8 +176,8 @@ RSpec.describe Dependabot::SharedHelpers do
       let(:function) { "error" }
 
       it "raises a HelperSubprocessFailed error" do
-        expect { run_subprocess }.
-          to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed)
+        expect { run_subprocess }
+          .to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed)
       end
     end
 
@@ -147,9 +185,9 @@ RSpec.describe Dependabot::SharedHelpers do
       let(:function) { "sensitive_error" }
 
       it "raises a HelperSubprocessFailed error" do
-        expect { run_subprocess }.
-          to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed) do |error|
-            expect(error.message).to eq("Something went wrong: https://www.example.com")
+        expect { run_subprocess }
+          .to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed) do |error|
+            expect(error.message).to include("Something went wrong: https://www.example.com")
           end
       end
     end
@@ -158,8 +196,8 @@ RSpec.describe Dependabot::SharedHelpers do
       let(:function) { "hard_error" }
 
       it "raises a HelperSubprocessFailed error" do
-        expect { run_subprocess }.
-          to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed)
+        expect { run_subprocess }
+          .to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed)
       end
     end
 
@@ -167,10 +205,10 @@ RSpec.describe Dependabot::SharedHelpers do
       let(:function) { "killed" }
 
       it "raises a HelperSubprocessFailed error" do
-        expect { run_subprocess }.
-          to(raise_error do |error|
-            expect(error).
-              to be_a(Dependabot::SharedHelpers::HelperSubprocessFailed)
+        expect { run_subprocess }
+          .to(raise_error do |error|
+            expect(error)
+              .to be_a(Dependabot::SharedHelpers::HelperSubprocessFailed)
             expect(error.error_context[:process_termsig]).to eq(9)
           end)
       end
@@ -179,9 +217,10 @@ RSpec.describe Dependabot::SharedHelpers do
 
   describe ".run_shell_command" do
     let(:command) { File.join(spec_root, "helpers/test/run_bash") + " output" }
+    let(:env) { nil }
 
     subject(:run_shell_command) do
-      Dependabot::SharedHelpers.run_shell_command(command)
+      Dependabot::SharedHelpers.run_shell_command(command, env: env)
     end
 
     context "when the subprocess is successful" do
@@ -201,8 +240,8 @@ RSpec.describe Dependabot::SharedHelpers do
 
       context "when allowing unsafe shell command" do
         subject(:run_shell_command) do
-          Dependabot::SharedHelpers.
-            run_shell_command(command, allow_unsafe_shell_command: true)
+          Dependabot::SharedHelpers
+            .run_shell_command(command, allow_unsafe_shell_command: true)
         end
 
         it "returns the command output" do
@@ -213,12 +252,40 @@ RSpec.describe Dependabot::SharedHelpers do
       end
     end
 
+    context "with an environment variable" do
+      let(:env) { { "TEST_ENV" => "prefix:" } }
+
+      it "is available to the command" do
+        expect(run_shell_command).to eq("prefix:output\n")
+      end
+    end
+
     context "when the subprocess exits" do
       let(:command) { File.join(spec_root, "helpers/test/error_bash") }
 
       it "raises a HelperSubprocessFailed error" do
-        expect { run_shell_command }.
-          to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed)
+        expect { run_shell_command }
+          .to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed)
+      end
+    end
+
+    context "when the subprocess exits with out of disk error" do
+      let(:command) { File.join(spec_root, "helpers/test/error_bash disk") }
+      it "raises a HelperSubprocessFailed out of disk error" do
+        expect { run_shell_command }
+          .to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed) do |error|
+            expect(error.message).to include("No space left on device")
+          end
+      end
+
+      context "when the subprocess exits with out of memory error" do
+        let(:command) { File.join(spec_root, "helpers/test/error_bash memory") }
+        it "raises a HelperSubprocessFailed out of memory error" do
+          expect { run_shell_command }
+            .to raise_error(Dependabot::SharedHelpers::HelperSubprocessFailed) do |error|
+              expect(error.message).to include("MemoryError")
+            end
+        end
       end
     end
   end
@@ -251,7 +318,7 @@ RSpec.describe Dependabot::SharedHelpers do
           (|
           \+https://github.com/dependabot/|dependabot-core|
           )|
-        }x
+        }xo
       )
     end
 
@@ -284,9 +351,11 @@ RSpec.describe Dependabot::SharedHelpers do
 
     it "includes the defaults" do
       expect(subject).to eq(
+        instrumentor: Dependabot::SimpleInstrumentor,
         connect_timeout: 5,
         write_timeout: 5,
         read_timeout: 20,
+        retry_limit: 4,
         omit_default_port: true,
         middlewares: described_class.excon_middleware,
         headers: described_class.excon_headers
@@ -337,11 +406,44 @@ RSpec.describe Dependabot::SharedHelpers do
     let(:credentials) { [] }
 
     def with_git_configured(&block)
-      Dependabot::SharedHelpers.with_git_configured(credentials: credentials) { block.call }
+      Dependabot::SharedHelpers.with_git_configured(credentials: credentials, &block)
     end
 
-    let(:configured_git_config) { with_git_configured { `cat ~/.gitconfig` } }
+    let(:git_config_path) { File.expand_path(".gitconfig", tmp) }
+    let(:configured_git_config) { with_git_configured { `cat #{git_config_path}` } }
     let(:configured_git_credentials) { with_git_configured { `cat #{Dir.pwd}/git.store` } }
+
+    context "when the global .gitconfig has a safe directory" do
+      before do
+        Open3.capture2("git config --global --add safe.directory /home/dependabot/dependabot-core/repo")
+      end
+      after do
+        Open3.capture2("git config --global --unset safe.directory /home/dependabot/dependabot-core/repo")
+      end
+
+      it "is preserved in the temporary .gitconfig" do
+        RSpec::Mocks.with_temporary_scope do
+          allow(FileUtils).to receive(:rm_f).with(git_config_path)
+          expect(configured_git_config).to include("directory = /home/dependabot/dependabot-core/repo")
+        end
+      ensure
+        FileUtils.rm_f git_config_path
+      end
+
+      context "when the global .gitconfig has two safe directories" do
+        before do
+          Open3.capture2("git config --global --add safe.directory /home/dependabot/dependabot-core/repo2")
+        end
+        after do
+          Open3.capture2("git config --global --unset safe.directory /home/dependabot/dependabot-core/repo2")
+        end
+
+        it "is preserved in the temporary .gitconfig" do
+          expect(configured_git_config).to include("directory = /home/dependabot/dependabot-core/repo")
+          expect(configured_git_config).to include("directory = /home/dependabot/dependabot-core/repo2")
+        end
+      end
+    end
 
     context "when providing no extra credentials" do
       let(:credentials) { [] }
@@ -450,9 +552,11 @@ RSpec.describe Dependabot::SharedHelpers do
 
     context "when the host has run out of disk space" do
       before do
-        allow(File).to receive(:open).
-          with(described_class::GIT_CONFIG_GLOBAL_PATH, anything).
-          and_raise(Errno::ENOSPC)
+        allow(File).to receive(:open)
+          .with(described_class::GIT_CONFIG_GLOBAL_PATH, anything)
+          .and_raise(Errno::ENOSPC)
+        allow(FileUtils).to receive(:rm_f)
+          .with(described_class::GIT_CONFIG_GLOBAL_PATH)
       end
 
       specify { expect { configured_git_config }.to raise_error(Dependabot::OutOfDisk) }

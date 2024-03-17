@@ -1,3 +1,4 @@
+# typed: strong
 # frozen_string_literal: true
 
 require "dependabot/python"
@@ -15,3 +16,6 @@ require "dependabot/cargo"
 require "dependabot/go_modules"
 require "dependabot/npm_and_yarn"
 require "dependabot/bundler"
+require "dependabot/pub"
+require "dependabot/swift"
+require "dependabot/devcontainers"

@@ -1,3 +1,4 @@
+# typed: strict
 # frozen_string_literal: true
 
 # These all need to be required so the various classes can be registered in a
@@ -11,12 +12,20 @@ require "dependabot/terraform/requirement"
 require "dependabot/terraform/version"
 
 require "dependabot/pull_request_creator/labeler"
-Dependabot::PullRequestCreator::Labeler.
-  register_label_details("terraform", name: "terraform", colour: "5C4EE5")
+Dependabot::PullRequestCreator::Labeler
+  .register_label_details("terraform", name: "terraform", colour: "5C4EE5")
 
 require "dependabot/dependency"
-Dependabot::Dependency.
-  register_production_check("terraform", ->(_) { true })
+Dependabot::Dependency
+  .register_production_check("terraform", ->(_) { true })
 
-require "dependabot/utils"
-Dependabot::Utils.register_always_clone("terraform")
+Dependabot::Dependency
+  .register_display_name_builder(
+    "terraform",
+    lambda { |name|
+      # Only modify the name if it a git source dependency
+      return name unless name.include? "::"
+
+      name.split("::").first + "::" + name.split("::")[2].split("/").last.split("(").first
+    }
+  )

@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "open3"
@@ -8,13 +9,14 @@ require "dependabot/go_modules/replace_stubber"
 require "dependabot/errors"
 require "dependabot/file_parsers"
 require "dependabot/file_parsers/base"
+require "dependabot/go_modules/version"
 
 module Dependabot
   module GoModules
     class FileParser < Dependabot::FileParsers::Base
-      GIT_VERSION_REGEX = /^v\d+\.\d+\.\d+-.*-(?<sha>[0-9a-f]{12})$/.freeze
-
       def parse
+        set_gotoolchain_env
+
         dependency_set = Dependabot::FileParsers::Base::DependencySet.new
 
         required_packages.each do |dep|
@@ -26,6 +28,19 @@ module Dependabot
 
       private
 
+      # set GOTOOLCHAIN=local if go version >= 1.21
+      def set_gotoolchain_env
+        go_directive = go_mod.content.match(/^go\s(\d+\.\d+)/)&.captures&.first
+        return ENV["GOTOOLCHAIN"] = ENV.fetch("GO_LEGACY") unless go_directive
+
+        go_version = Dependabot::GoModules::Version.new(go_directive)
+        ENV["GOTOOLCHAIN"] = if go_version >= "1.21"
+                               "local"
+                             else
+                               ENV.fetch("GO_LEGACY")
+                             end
+      end
+
       def go_mod
         @go_mod ||= get_original_file("go.mod")
       end
@@ -35,15 +50,11 @@ module Dependabot
       end
 
       def dependency_from_details(details)
-        source =
-          if rev_identifier?(details) then git_source(details)
-          else { type: "default", source: details["Path"] }
-          end
-
+        source = { type: "default", source: details["Path"] }
         version = details["Version"]&.sub(/^v?/, "")
 
         reqs = [{
-          requirement: rev_identifier?(details) ? nil : details["Version"],
+          requirement: details["Version"],
           file: go_mod.name,
           source: source,
           groups: []
@@ -52,7 +63,7 @@ module Dependabot
         Dependency.new(
           name: details["Path"],
           version: version,
-          requirements: details["Indirect"] || dependency_is_replaced(details) ? [] : reqs,
+          requirements: details["Indirect"] ? [] : reqs,
           package_manager: "go_modules"
         )
       end
@@ -64,7 +75,7 @@ module Dependabot
             # `go mod edit` works, even if some modules have been `replace`d with
             # a local module that we don't have access to.
             local_replacements.each do |_, stub_path|
-              Dir.mkdir(stub_path) unless Dir.exist?(stub_path)
+              FileUtils.mkdir_p(stub_path)
               FileUtils.touch(File.join(stub_path, "go.mod"))
             end
 
@@ -72,21 +83,9 @@ module Dependabot
 
             command = "go mod edit -json"
 
-            # Turn off the module proxy for now, as it's causing issues with
-            # private git dependencies
-            env = { "GOPRIVATE" => "*" }
-
-            stdout, stderr, status = Open3.capture3(env, command)
+            stdout, stderr, status = Open3.capture3(command)
             handle_parser_error(path, stderr) unless status.success?
             JSON.parse(stdout)["Require"] || []
-          rescue Dependabot::DependencyFileNotResolvable
-            # We sometimes see this error if a host times out.
-            # In such cases, retrying (a maximum of 3 times) may fix it.
-            retry_count ||= 0
-            raise if retry_count >= 3
-
-            retry_count += 1
-            retry
           end
       end
 
@@ -108,11 +107,7 @@ module Dependabot
             # directives
             command = "go mod edit -json"
 
-            # Turn off the module proxy for now, as it's causing issues with
-            # private git dependencies
-            env = { "GOPRIVATE" => "*" }
-
-            stdout, stderr, status = Open3.capture3(env, command)
+            stdout, stderr, status = Open3.capture3(command)
             handle_parser_error(path, stderr) unless status.success?
 
             JSON.parse(stdout)
@@ -130,51 +125,14 @@ module Dependabot
         raise Dependabot::DependencyFileNotParseable.new(go_mod.path, msg)
       end
 
-      def rev_identifier?(dep)
-        dep["Version"]&.match?(GIT_VERSION_REGEX)
-      end
-
-      def git_source(dep)
-        url = PathConverter.git_url_for_path(dep["Path"])
-
-        # Currently, we have no way of knowing whether the commit tagged
-        # is being used because a branch is being followed or because a
-        # particular ref is in use. We *assume* that a particular ref is in
-        # use (which means we'll only propose updates when its included in
-        # a release)
-        {
-          type: "git",
-          url: url || dep["Path"],
-          ref: git_revision(dep),
-          branch: nil
-        }
-      rescue Dependabot::SharedHelpers::HelperSubprocessFailed => e
-        if e.message == "Cannot detect VCS"
-          msg = e.message + " for #{dep['Path']}. Attempted to detect VCS "\
-                            "because the version looks like a git revision: "\
-                            "#{dep['Version']}"
-          raise Dependabot::DependencyFileNotResolvable, msg
-        end
-
-        raise
-      end
-
-      def git_revision(dep)
-        raw_version = dep.fetch("Version")
-        return raw_version unless raw_version.match?(GIT_VERSION_REGEX)
-
-        raw_version.match(GIT_VERSION_REGEX).named_captures.fetch("sha")
-      end
-
       def skip_dependency?(dep)
-        return true if dep["Indirect"]
+        # Updating replaced dependencies is not supported
+        return true if dependency_is_replaced(dep)
 
-        begin
-          path_uri = URI.parse("https://#{dep['Path']}")
-          !path_uri.host.include?(".")
-        rescue URI::InvalidURIError
-          false
-        end
+        path_uri = URI.parse("https://#{dep['Path']}")
+        !path_uri.host.include?(".")
+      rescue URI::InvalidURIError
+        false
       end
 
       def dependency_is_replaced(details)
@@ -198,5 +156,5 @@ module Dependabot
   end
 end
 
-Dependabot::FileParsers.
-  register("go_modules", Dependabot::GoModules::FileParser)
+Dependabot::FileParsers
+  .register("go_modules", Dependabot::GoModules::FileParser)

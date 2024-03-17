@@ -1,4 +1,7 @@
+# typed: false
 # frozen_string_literal: true
+
+require "toml-rb"
 
 require "dependabot/dependency"
 require "dependabot/file_parsers"
@@ -18,25 +21,23 @@ module Dependabot
       require "dependabot/file_parsers/base/dependency_set"
       require_relative "file_parser/property_value_finder"
 
-      SUPPORTED_BUILD_FILE_NAMES = %w(build.gradle build.gradle.kts).freeze
+      SUPPORTED_BUILD_FILE_NAMES = %w(build.gradle build.gradle.kts settings.gradle settings.gradle.kts).freeze
 
       PROPERTY_REGEX =
         /
           (?:\$\{property\((?<property_name>[^:\s]*?)\)\})|
           (?:\$\{(?<property_name>[^:\s]*?)\})|
           (?:\$(?<property_name>[^:\s"']*))
-        /x.freeze
+        /x
 
-      PART = %r{[^\s,@'":/\\]+}.freeze
-      VSN_PART = %r{[^\s,'":/\\]+}.freeze
-      DEPENDENCY_DECLARATION_REGEX =
-        /(?:\(|\s)\s*['"](?<declaration>#{PART}:#{PART}:#{VSN_PART})['"]/.
-        freeze
-      DEPENDENCY_SET_DECLARATION_REGEX =
-        /(?:^|\s)dependencySet\((?<arguments>[^\)]+)\)\s*\{/.freeze
-      DEPENDENCY_SET_ENTRY_REGEX = /entry\s+['"](?<name>#{PART})['"]/.freeze
-      PLUGIN_BLOCK_DECLARATION_REGEX = /(?:^|\s)plugins\s*\{/.freeze
-      PLUGIN_ID_REGEX = /['"](?<id>#{PART})['"]/.freeze
+      PART = %r{[^\s,@'":/\\]+}
+      VSN_PART = %r{[^\s,'":/\\]+}
+      DEPENDENCY_DECLARATION_REGEX = /(?:\(|\s)\s*['"](?<declaration>#{PART}:#{PART}:#{VSN_PART})['"]/
+
+      DEPENDENCY_SET_DECLARATION_REGEX = /(?:^|\s)dependencySet\((?<arguments>[^\)]+)\)\s*\{/
+      DEPENDENCY_SET_ENTRY_REGEX = /entry\s+['"](?<name>#{PART})['"]/
+      PLUGIN_BLOCK_DECLARATION_REGEX = /(?:^|\s)plugins\s*\{/
+      PLUGIN_ID_REGEX = /['"](?<id>#{PART})['"]/
 
       def parse
         dependency_set = DependencySet.new
@@ -46,24 +47,87 @@ module Dependabot
         script_plugin_files.each do |plugin_file|
           dependency_set += buildfile_dependencies(plugin_file)
         end
-        dependency_set.dependencies
+        version_catalog_file.each do |toml_file|
+          dependency_set += version_catalog_dependencies(toml_file)
+        end
+        dependency_set.dependencies.reject do |dependency|
+          dependency.version == "latest.integration" || dependency.version == "latest.release"
+        end
       end
 
       def self.find_include_names(buildfile)
         return [] unless buildfile
 
-        buildfile.content.
-          scan(/apply(\(| )\s*from(\s+=|:)\s+['"]([^'"]+)['"]/).
-          map { |match| match[2] }
+        buildfile.content
+                 .scan(/apply(\(| )\s*from(\s+=|:)\s+['"]([^'"]+)['"]/)
+                 .map { |match| match[2] }
       end
 
       def self.find_includes(buildfile, dependency_files)
-        FileParser.find_include_names(buildfile).
-          map { |f| dependency_files.find { |bf| bf.name == f } }.
-          compact
+        FileParser.find_include_names(buildfile)
+                  .filter_map { |f| dependency_files.find { |bf| bf.name == f } }
       end
 
       private
+
+      def version_catalog_dependencies(toml_file)
+        dependency_set = DependencySet.new
+        parsed_toml_file = parsed_toml_file(toml_file)
+        dependency_set += version_catalog_library_dependencies(parsed_toml_file, toml_file)
+        dependency_set += version_catalog_plugin_dependencies(parsed_toml_file, toml_file)
+        dependency_set
+      end
+
+      def version_catalog_library_dependencies(parsed_toml_file, toml_file)
+        dependencies_for_declarations(parsed_toml_file["libraries"], toml_file, :details_for_library_dependency)
+      end
+
+      def version_catalog_plugin_dependencies(parsed_toml_file, toml_file)
+        dependencies_for_declarations(parsed_toml_file["plugins"], toml_file, :details_for_plugin_dependency)
+      end
+
+      def dependencies_for_declarations(declarations, toml_file, details_getter)
+        dependency_set = DependencySet.new
+        return dependency_set unless declarations
+
+        declarations.each do |_mod, declaration|
+          group, name, version = send(details_getter, declaration)
+
+          # Only support basic version and reference formats for now,
+          # refrain from updating anything else as it's likely to be a very deliberate choice.
+          next unless Gradle::Version.correct?(version) || (version.is_a?(Hash) && version.key?("ref"))
+
+          version_details = Gradle::Version.correct?(version) ? version : "$" + version["ref"]
+          details = { group: group, name: name, version: version_details }
+          dependency = dependency_from(details_hash: details, buildfile: toml_file)
+          next unless dependency
+
+          dependency_set << dependency
+        end
+        dependency_set
+      end
+
+      def details_for_library_dependency(declaration)
+        return declaration.split(":") if declaration.is_a?(String)
+
+        if declaration["module"]
+          [*declaration["module"].split(":"), declaration["version"]]
+        else
+          [declaration["group"], declaration["name"], declaration["version"]]
+        end
+      end
+
+      def details_for_plugin_dependency(declaration)
+        return ["plugins", *declaration.split(":")] if declaration.is_a?(String)
+
+        ["plugins", declaration["id"], declaration["version"]]
+      end
+
+      def parsed_toml_file(file)
+        TomlRB.parse(file.content)
+      rescue TomlRB::ParseError, TomlRB::ValueOverwriteError
+        raise Dependabot::DependencyFileNotParseable, file.path
+      end
 
       def map_value_regex(key)
         /(?:^|\s|,|\()#{Regexp.quote(key)}(\s*=|:)\s*['"](?<value>[^'"]+)['"]/
@@ -161,11 +225,10 @@ module Dependabot
 
         plugin_blocks.each do |blk|
           blk.lines.each do |line|
-            name_regex = /(id|kotlin)(\s+#{PLUGIN_ID_REGEX}|\(#{PLUGIN_ID_REGEX}\))/
+            name_regex = /(id|kotlin)(\s+#{PLUGIN_ID_REGEX}|\(#{PLUGIN_ID_REGEX}\))/o
             name = line.match(name_regex)&.named_captures&.fetch("id")
-            version_regex = /version\s+['"](?<version>#{VSN_PART})['"]/
-            version = line.match(version_regex)&.named_captures&.
-                fetch("version")
+            version_regex = /version\s+(?<version>['"]?#{VSN_PART}['"]?)/o
+            version = format_plugin_version(line.match(version_regex)&.named_captures&.fetch("version"))
             next unless name && version
 
             details = { name: name, group: "plugins", extra_groups: extra_groups(line), version: version }
@@ -177,15 +240,19 @@ module Dependabot
         dependency_set
       end
 
+      def format_plugin_version(version)
+        quoted?(version) ? unquote(version) : "$#{version}"
+      end
+
       def extra_groups(line)
-        line.match(/kotlin(\s+#{PLUGIN_ID_REGEX}|\(#{PLUGIN_ID_REGEX}\))/) ? ["kotlin"] : []
+        line.match?(/kotlin(\s+#{PLUGIN_ID_REGEX}|\(#{PLUGIN_ID_REGEX}\))/o) ? ["kotlin"] : []
       end
 
       def argument_from_string(string, arg_name)
-        string.
-          match(map_value_regex(arg_name))&.
-          named_captures&.
-          fetch("value")
+        string
+          .match(map_value_regex(arg_name))
+          &.named_captures
+          &.fetch("value")
       end
 
       def dependency_from(details_hash:, buildfile:, in_dependency_set: false)
@@ -196,11 +263,13 @@ module Dependabot
 
         dependency_name =
           if group == "plugins" then name
-          else "#{group}:#{name}"
+          else
+            "#{group}:#{name}"
           end
         groups =
           if group == "plugins" then ["plugins"] + extra_groups
-          else []
+          else
+            []
           end
         source =
           source_from(group, name, version)
@@ -239,9 +308,9 @@ module Dependabot
 
       def dependency_metadata(details_hash, in_dependency_set)
         version_property_name =
-          details_hash[:version].
-          match(PROPERTY_REGEX)&.
-          named_captures&.fetch("property_name")
+          details_hash[:version]
+          .match(PROPERTY_REGEX)
+          &.named_captures&.fetch("property_name")
 
         return unless version_property_name || in_dependency_set
 
@@ -259,8 +328,8 @@ module Dependabot
       def evaluated_value(value, buildfile)
         return value unless value.scan(PROPERTY_REGEX).count == 1
 
-        property_name  = value.match(PROPERTY_REGEX).
-                         named_captures.fetch("property_name")
+        property_name  = value.match(PROPERTY_REGEX)
+                              .named_captures.fetch("property_name")
         property_value = property_value_finder.property_value(
           property_name: property_name,
           callsite_buildfile: buildfile
@@ -279,9 +348,9 @@ module Dependabot
       def prepared_content(buildfile)
         # Remove any comments
         prepared_content =
-          buildfile.content.
-          gsub(%r{(?<=^|\s)//.*$}, "\n").
-          gsub(%r{(?<=^|\s)/\*.*?\*/}m, "")
+          buildfile.content
+                   .gsub(%r{(?<=^|\s)//.*$}, "\n")
+                   .gsub(%r{(?<=^|\s)/\*.*?\*/}m, "")
 
         # Remove the dependencyVerification section added by Gradle Witness
         # (TODO: Support updating this in the FileUpdater)
@@ -312,12 +381,18 @@ module Dependabot
         end
       end
 
+      def version_catalog_file
+        @version_catalog_file ||= dependency_files.select do |f|
+          f.name.end_with?("libs.versions.toml")
+        end
+      end
+
       def script_plugin_files
         @script_plugin_files ||=
           buildfiles.flat_map do |buildfile|
             FileParser.find_includes(buildfile, dependency_files)
-          end.
-          uniq
+          end
+                    .uniq
       end
 
       def check_required_files
@@ -328,6 +403,14 @@ module Dependabot
         dependency_files.find do |f|
           SUPPORTED_BUILD_FILE_NAMES.include?(f.name)
         end
+      end
+
+      def quoted?(string)
+        string&.match?(/^['"].*['"]$/)
+      end
+
+      def unquote(string)
+        string[1..-2]
       end
     end
   end

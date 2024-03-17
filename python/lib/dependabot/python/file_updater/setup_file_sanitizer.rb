@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/python/file_updater"
@@ -19,9 +20,9 @@ module Dependabot
           # install_requires. A name and version are required by don't end up
           # in the lockfile.
           content =
-            "from setuptools import setup\n\n"\
-            "setup(name=\"sanitized-package\",version=\"0.0.1\","\
-            "install_requires=#{install_requires_array.to_json},"\
+            "from setuptools import setup\n\n" \
+            "setup(name=\"sanitized-package\",version=\"0.0.1\"," \
+            "install_requires=#{install_requires_array.to_json}," \
             "extras_require=#{extras_require_hash.to_json}"
 
           content += ',setup_requires=["pbr"],pbr=True' if include_pbr?
@@ -38,22 +39,22 @@ module Dependabot
 
         def install_requires_array
           @install_requires_array ||=
-            parsed_setup_file.dependencies.map do |dep|
-              next unless dep.requirements.first[:groups].
-                          include?("install_requires")
+            parsed_setup_file.dependencies.filter_map do |dep|
+              next unless dep.requirements.first[:groups]
+                             .include?("install_requires")
 
               dep.name + dep.requirements.first[:requirement].to_s
-            end.compact
+            end
         end
 
         def setup_requires_array
           @setup_requires_array ||=
-            parsed_setup_file.dependencies.map do |dep|
-              next unless dep.requirements.first[:groups].
-                          include?("setup_requires")
+            parsed_setup_file.dependencies.filter_map do |dep|
+              next unless dep.requirements.first[:groups]
+                             .include?("setup_requires")
 
               dep.name + dep.requirements.first[:requirement].to_s
-            end.compact
+            end
         end
 
         def extras_require_hash
@@ -66,7 +67,7 @@ module Dependabot
 
                   hash[group.split(":").last] ||= []
                   hash[group.split(":").last] <<
-                    dep.name + dep.requirements.first[:requirement].to_s
+                    (dep.name + dep.requirements.first[:requirement].to_s)
                 end
               end
 

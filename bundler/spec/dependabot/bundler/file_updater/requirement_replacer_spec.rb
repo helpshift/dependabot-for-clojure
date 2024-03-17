@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -68,9 +69,9 @@ RSpec.describe Dependabot::Bundler::FileUpdater::RequirementReplacer do
 
       context "within a source block" do
         let(:content) do
-          "source 'https://example.com' do\n"\
-          "  gem \"business\", \"~> 1.0\", require: true\n"\
-          "end"
+          "source 'https://example.com' do\n" \
+            "  gem \"business\", \"~> 1.0\", require: true\n" \
+            "end"
         end
         it { is_expected.to include(%(gem "business", "~> 1.5.0", require:)) }
       end
@@ -98,8 +99,8 @@ RSpec.describe Dependabot::Bundler::FileUpdater::RequirementReplacer do
           let(:updated_requirement) { "~> 1.10" }
 
           it "handles the change in required spaces" do
-            expect(rewrite).
-              to eq("gem \"business\", \"~> 1.10\"   # description\n")
+            expect(rewrite)
+              .to eq("gem \"business\", \"~> 1.10\"   # description\n")
           end
         end
 
@@ -107,16 +108,16 @@ RSpec.describe Dependabot::Bundler::FileUpdater::RequirementReplacer do
           let(:updated_requirement) { "~> 2" }
 
           it "handles the change in required spaces" do
-            expect(rewrite).
-              to eq("gem \"business\", \"~> 2\"      # description\n")
+            expect(rewrite)
+              .to eq("gem \"business\", \"~> 2\"      # description\n")
           end
 
           context "but there was only one space to start with" do
             let(:content) { "gem \"business\", \"~> 1.9\" # description\n" }
 
             it "doesn't update the spaces" do
-              expect(rewrite).
-                to eq("gem \"business\", \"~> 2\" # description\n")
+              expect(rewrite)
+                .to eq("gem \"business\", \"~> 2\" # description\n")
             end
           end
         end
@@ -128,16 +129,16 @@ RSpec.describe Dependabot::Bundler::FileUpdater::RequirementReplacer do
 
           context "when no change is required" do
             it "handles the change in required spaces" do
-              expect(rewrite).
-                to eq("gem \"business\", \"2.0\"    # description\n")
+              expect(rewrite)
+                .to eq("gem \"business\", \"2.0\"    # description\n")
             end
           end
 
           context "when a change is required" do
             let(:updated_requirement) { "2.0.0" }
             it "handles the change in required spaces" do
-              expect(rewrite).
-                to eq("gem \"business\", \"2.0.0\"  # description\n")
+              expect(rewrite)
+                .to eq("gem \"business\", \"2.0.0\"  # description\n")
             end
           end
         end
@@ -184,6 +185,11 @@ RSpec.describe Dependabot::Bundler::FileUpdater::RequirementReplacer do
           end
           it { is_expected.to eq(content) }
         end
+      end
+
+      context "with a case statement" do
+        let(:content) { %(gem "business",  case true\n when true\n "1.0.0"\n else\n "1.2.0"\n end) }
+        it { is_expected.to eq(content) }
       end
 
       context "with a conditional" do

@@ -1,15 +1,27 @@
+# typed: true
 # frozen_string_literal: true
 
+require "sorbet-runtime"
+
 require "dependabot/bundler/update_checker"
+require "dependabot/requirements_update_strategy"
 
 module Dependabot
   module Bundler
     class UpdateChecker
       class RequirementsUpdater
+        extend T::Sig
+
         class UnfixableRequirement < StandardError; end
 
-        ALLOWED_UPDATE_STRATEGIES =
-          %i(bump_versions bump_versions_if_necessary).freeze
+        ALLOWED_UPDATE_STRATEGIES = T.let(
+          [
+            RequirementsUpdateStrategy::LockfileOnly,
+            RequirementsUpdateStrategy::BumpVersions,
+            RequirementsUpdateStrategy::BumpVersionsIfNecessary
+          ].freeze,
+          T::Array[Dependabot::RequirementsUpdateStrategy]
+        )
 
         def initialize(requirements:, update_strategy:, updated_source:,
                        latest_version:, latest_resolvable_version:)
@@ -27,8 +39,10 @@ module Dependabot
         end
 
         def updated_requirements
+          return requirements if update_strategy == RequirementsUpdateStrategy::LockfileOnly
+
           requirements.map do |req|
-            if req[:file].match?(/\.gemspec/)
+            if req[:file].include?(".gemspec")
               update_gemspec_requirement(req)
             else
               # If a requirement doesn't come from a gemspec, it must be from
@@ -55,9 +69,9 @@ module Dependabot
           return req unless latest_resolvable_version
 
           case update_strategy
-          when :bump_versions
+          when RequirementsUpdateStrategy::BumpVersions
             update_version_requirement(req)
-          when :bump_versions_if_necessary
+          when RequirementsUpdateStrategy::BumpVersionsIfNecessary
             update_version_requirement_if_needed(req)
           else raise "Unexpected update strategy: #{update_strategy}"
           end
@@ -101,7 +115,7 @@ module Dependabot
               when "!="
                 []
               else
-                raise "Unexpected operation for unsatisfied Gemfile "\
+                raise "Unexpected operation for unsatisfied Gemfile " \
                       "requirement: #{op}"
               end
             end
@@ -110,17 +124,17 @@ module Dependabot
         end
 
         def at_same_precision(new_version, old_version)
-          release_precision = old_version.to_s.split(".").
-                              take_while { |i| i.match?(/^\d+$/) }.count
+          release_precision = old_version.to_s.split(".")
+                                         .take_while { |i| i.match?(/^\d+$/) }.count
           prerelease_precision =
             old_version.to_s.split(".").count - release_precision
 
           new_release =
             new_version.to_s.split(".").first(release_precision)
           new_prerelease =
-            new_version.to_s.split(".").
-            drop_while { |i| i.match?(/^\d+$/) }.
-            first([prerelease_precision, 1].max)
+            new_version.to_s.split(".")
+                       .drop_while { |i| i.match?(/^\d+$/) }
+                       .first([prerelease_precision, 1].max)
 
           [*new_release, *new_prerelease].join(".")
         end
@@ -142,7 +156,8 @@ module Dependabot
               next r if requirement_satisfied?(r, req[:groups])
 
               if req[:groups] == ["development"] then bumped_requirements(r)
-              else widened_requirements(r)
+              else
+                widened_requirements(r)
               end
             end
 
@@ -267,7 +282,8 @@ module Dependabot
               version_to_be_permitted.segments[index] + 1
             elsif index > version_to_be_permitted.segments.count - 1
               nil
-            else 0
+            else
+              0
             end
           end.compact
 

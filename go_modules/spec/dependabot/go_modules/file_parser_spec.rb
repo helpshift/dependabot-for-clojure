@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -9,6 +10,11 @@ require_common_spec "file_parsers/shared_examples_for_file_parsers"
 
 RSpec.describe Dependabot::GoModules::FileParser do
   it_behaves_like "a dependency file parser"
+
+  after do
+    # Reset to the default go toolchain after each test
+    ENV["GOTOOLCHAIN"] = ENV.fetch("GO_LEGACY")
+  end
 
   let(:parser) { described_class.new(dependency_files: files, source: source, repo_contents_path: repo_contents_path) }
   let(:files) { [go_mod] }
@@ -40,7 +46,7 @@ RSpec.describe Dependabot::GoModules::FileParser do
   describe "parse" do
     subject(:dependencies) { parser.parse }
 
-    its(:length) { is_expected.to eq(3) }
+    its(:length) { is_expected.to eq(4) }
 
     describe "top level dependencies" do
       subject(:dependencies) do
@@ -110,22 +116,48 @@ RSpec.describe Dependabot::GoModules::FileParser do
           it "has the right details" do
             expect(dependency).to be_a(Dependabot::Dependency)
             expect(dependency.name).to eq("golang.org/x/crypto")
-            expect(dependency.version).
-              to eq("0.0.0-20180617042118-027cca12c2d6")
+            expect(dependency.version)
+              .to eq("0.0.0-20180617042118-027cca12c2d6")
             expect(dependency.requirements).to eq(
               [{
-                requirement: nil,
                 file: "go.mod",
                 groups: [],
-                source: {
-                  type: "git",
-                  url: "https://github.com/golang/crypto",
-                  ref: "027cca12c2d6",
-                  branch: nil
-                }
+                requirement: "v0.0.0-20180617042118-027cca12c2d6",
+                source: { source: "golang.org/x/crypto", type: "default" }
               }]
             )
           end
+        end
+      end
+
+      context "with a go.mod that has go 1.21 but no toolchain" do
+        let(:go_mod_fixture_name) { "go_1_21_no_toolchain.mod" }
+
+        it "sets GOTOOLCHAIN=local" do
+          parser.parse
+
+          expect(ENV.fetch("GOTOOLCHAIN", nil)).to eq("local")
+        end
+      end
+    end
+
+    describe "indirect dependencies" do
+      subject(:dependencies) do
+        parser.parse.reject(&:top_level?)
+      end
+
+      its(:length) { is_expected.to eq(2) }
+
+      describe "a dependency that uses go modules" do
+        subject(:dependency) do
+          dependencies.find { |d| d.name == "github.com/mattn/go-isatty" }
+        end
+
+        it "has the right details" do
+          expect(dependency).to be_a(Dependabot::Dependency)
+          expect(dependency.name).to eq("github.com/mattn/go-isatty")
+          expect(dependency.version).to eq("0.0.4")
+          expect(dependency.requirements).to be_empty
         end
       end
     end
@@ -135,11 +167,8 @@ RSpec.describe Dependabot::GoModules::FileParser do
         dependencies.find { |d| d.name == "rsc.io/qr" }
       end
 
-      it "has the right details" do
-        expect(dependency).to be_a(Dependabot::Dependency)
-        expect(dependency.name).to eq("rsc.io/qr")
-        expect(dependency.version).to eq("0.1.0")
-        expect(dependency.requirements).to eq([])
+      it "is skipped as unsupported" do
+        expect(dependency).to be_nil
       end
     end
 
@@ -147,8 +176,8 @@ RSpec.describe Dependabot::GoModules::FileParser do
       let(:go_mod_content) { "not really a go.mod file :-/" }
 
       it "raises the correct error" do
-        expect { parser.parse }.
-          to raise_error(Dependabot::DependencyFileNotParseable) do |error|
+        expect { parser.parse }
+          .to raise_error(Dependabot::DependencyFileNotParseable) do |error|
             expect(error.file_path).to eq("/go.mod")
           end
       end
@@ -256,8 +285,8 @@ RSpec.describe Dependabot::GoModules::FileParser do
       end
 
       it "raises the correct error" do
-        expect { parser.parse }.
-          to raise_error(Dependabot::DependencyFileNotParseable) do |error|
+        expect { parser.parse }
+          .to raise_error(Dependabot::DependencyFileNotParseable) do |error|
             expect(error.file_path).to eq("/go.mod")
             expect(error.message).to match(/v0 or v1/)
           end
@@ -274,9 +303,8 @@ RSpec.describe Dependabot::GoModules::FileParser do
         dependencies.find { |d| d.name == "rsc.io/qr" }
       end
 
-      it "has the right details" do
-        expect(dependency).to be_a(Dependabot::Dependency)
-        expect(dependency.name).to eq("rsc.io/qr")
+      it "is skipped as unsupported" do
+        expect(dependency).to be_nil
       end
     end
 
@@ -292,30 +320,14 @@ RSpec.describe Dependabot::GoModules::FileParser do
       its(:length) { is_expected.to eq(0) }
     end
 
-    context "that is not resolvable" do
-      let(:go_mod_content) do
-        fixture("projects", "unknown_vcs", "go.mod")
-      end
-
-      it "raises the correct error" do
-        expect { parser.parse }.
-          to raise_error do |err|
-            expect(err).to be_a(Dependabot::DependencyFileNotResolvable)
-            expect(err.message).
-              to start_with("Cannot detect VCS for unknown.doesnotexist/vcs")
-          end
-      end
-    end
-
     context "a monorepo" do
       let(:project_name) { "monorepo" }
       let(:repo_contents_path) { build_tmp_repo(project_name) }
       let(:go_mod_content) { fixture("projects", project_name, "go.mod") }
 
       it "parses root file" do
-        expect(dependencies.map(&:name)).
-          to eq(%w(
-            github.com/dependabot/vgotest/common
+        expect(dependencies.map(&:name))
+          .to eq(%w(
             rsc.io/qr
           ))
       end
@@ -325,9 +337,8 @@ RSpec.describe Dependabot::GoModules::FileParser do
         let(:go_mod_content) { fixture("projects", project_name, "cmd", "go.mod") }
 
         it "parses nested file" do
-          expect(dependencies.map(&:name)).
-            to eq(%w(
-              github.com/dependabot/vgotest/common
+          expect(dependencies.map(&:name))
+            .to eq(%w(
               rsc.io/qr
             ))
         end

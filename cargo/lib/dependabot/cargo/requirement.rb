@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 ################################################################################
@@ -6,17 +7,22 @@
 # - https://steveklabnik.github.io/semver/semver/index.html                    #
 ################################################################################
 
+require "sorbet-runtime"
+
+require "dependabot/requirement"
 require "dependabot/utils"
 require "dependabot/cargo/version"
 
 module Dependabot
   module Cargo
-    class Requirement < Gem::Requirement
+    class Requirement < Dependabot::Requirement
+      extend T::Sig
+
       quoted = OPS.keys.map { |k| Regexp.quote(k) }.join("|")
       version_pattern = Cargo::Version::VERSION_PATTERN
 
-      PATTERN_RAW = "\\s*(#{quoted})?\\s*(#{version_pattern})\\s*"
-      PATTERN = /\A#{PATTERN_RAW}\z/.freeze
+      PATTERN_RAW = "\\s*(#{quoted})?\\s*(#{version_pattern})\\s*".freeze
+      PATTERN = /\A#{PATTERN_RAW}\z/
 
       # Use Cargo::Version rather than Gem::Version to ensure that
       # pre-release versions aren't transformed.
@@ -30,12 +36,13 @@ module Dependabot
 
         return DefaultRequirement if matches[1] == ">=" && matches[2] == "0"
 
-        [matches[1] || "=", Cargo::Version.new(matches[2])]
+        [matches[1] || "=", Cargo::Version.new(T.must(matches[2]))]
       end
 
-      # For consistency with other langauges, we define a requirements array.
+      # For consistency with other languages, we define a requirements array.
       # Rust doesn't have an `OR` separator for requirements, so it always
       # contains a single element.
+      sig { override.params(requirement_string: T.nilable(String)).returns(T::Array[Requirement]) }
       def self.requirements_array(requirement_string)
         [new(requirement_string)]
       end
@@ -58,7 +65,8 @@ module Dependabot
         elsif req_string.match?(/^~[^>]/) then convert_tilde_req(req_string)
         elsif req_string.match?(/^[\d^]/) then convert_caret_req(req_string)
         elsif req_string.match?(/[<=>]/) then req_string
-        else ruby_range(req_string)
+        else
+          ruby_range(req_string)
         end
       end
 
@@ -92,7 +100,8 @@ module Dependabot
         upper_bound = parts.map.with_index do |part, i|
           if i < first_non_zero_index then part
           elsif i == first_non_zero_index then (part.to_i + 1).to_s
-          else 0
+          else
+            0
           end
         end.join(".")
 
@@ -102,5 +111,5 @@ module Dependabot
   end
 end
 
-Dependabot::Utils.
-  register_requirement_class("cargo", Dependabot::Cargo::Requirement)
+Dependabot::Utils
+  .register_requirement_class("cargo", Dependabot::Cargo::Requirement)

@@ -4,21 +4,15 @@ Yarn and npm support for [`dependabot-core`][core-repo].
 
 ### Running locally
 
-1. Install native helpers
+1. Start a development shell
 
-   ```
-   $ cd helpers && npm install && cd -
-   ```
+  ```
+  $ bin/docker-dev-shell npm_and_yarn
+  ```
 
-2. Install Ruby dependencies
-
+2. Run tests
    ```
-   $ bundle install
-   ```
-
-3. Run tests
-   ```
-   $ bundle exec rspec spec
+   [dependabot-core-dev] ~ $ cd npm_and_yarn && rspec
    ```
 
 [core-repo]: https://github.com/dependabot/dependabot-core

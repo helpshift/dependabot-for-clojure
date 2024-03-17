@@ -1,9 +1,12 @@
+# typed: true
 # frozen_string_literal: true
 
 require "cgi"
 require "excon"
 require "nokogiri"
 require "open3"
+require "digest"
+require "sorbet-runtime"
 require "dependabot/dependency"
 require "dependabot/file_parsers"
 require "dependabot/file_parsers/base"
@@ -11,27 +14,45 @@ require "dependabot/git_commit_checker"
 require "dependabot/shared_helpers"
 require "dependabot/errors"
 require "dependabot/terraform/file_selector"
+require "dependabot/terraform/registry_client"
 
 module Dependabot
   module Terraform
     class FileParser < Dependabot::FileParsers::Base
+      extend T::Sig
+
       require "dependabot/file_parsers/base/dependency_set"
 
       include FileSelector
 
-      ARCHIVE_EXTENSIONS = %w(.zip .tbz2 .tgz .txz).freeze
       DEFAULT_REGISTRY = "registry.terraform.io"
       DEFAULT_NAMESPACE = "hashicorp"
       # https://www.terraform.io/docs/language/providers/requirements.html#source-addresses
-      PROVIDER_SOURCE_ADDRESS = %r{\A((?<hostname>.+)/)?(?<namespace>.+)/(?<name>.+)\z}.freeze
+      PROVIDER_SOURCE_ADDRESS = %r{\A((?<hostname>.+)/)?(?<namespace>.+)/(?<name>.+)\z}
 
       def parse
         dependency_set = DependencySet.new
 
+        parse_terraform_files(dependency_set)
+
+        parse_terragrunt_files(dependency_set)
+
+        dependency_set.dependencies.sort_by(&:name)
+      end
+
+      private
+
+      def parse_terraform_files(dependency_set)
         terraform_files.each do |file|
           modules = parsed_file(file).fetch("module", {})
           modules.each do |name, details|
-            dependency_set << build_terraform_dependency(file, name, details)
+            details = details.first
+
+            source = source_from(details)
+            # Cannot update local path modules, skip
+            next if source[:type] == "path"
+
+            dependency_set << build_terraform_dependency(file, name, source, details)
           end
 
           parsed_file(file).fetch("terraform", []).each do |terraform|
@@ -43,28 +64,30 @@ module Dependabot
             end
           end
         end
+      end
 
+      def parse_terragrunt_files(dependency_set)
         terragrunt_files.each do |file|
           modules = parsed_file(file).fetch("terraform", [])
           modules.each do |details|
             next unless details["source"]
 
-            dependency_set << build_terragrunt_dependency(file, details)
+            source = source_from(details)
+            # Cannot update nil (interpolation sources) or local path modules, skip
+            next if source.nil? || source[:type] == "path"
+
+            dependency_set << build_terragrunt_dependency(file, source)
           end
         end
-
-        dependency_set.dependencies.sort_by(&:name)
       end
 
-      private
-
-      def build_terraform_dependency(file, name, details)
-        details = details.first
-
-        source = source_from(details)
+      def build_terraform_dependency(file, name, source, details)
+        # dep_name should be unique for a source, using the info derived from
+        # the source or the source name provides this uniqueness
         dep_name = case source[:type]
                    when "registry" then source[:module_identifier]
                    when "provider" then details["source"]
+                   when "git" then git_dependency_name(name, source)
                    else name
                    end
         version_req = details["version"]&.strip
@@ -114,8 +137,8 @@ module Dependabot
       def deprecated_provider_error(file)
         raise Dependabot::DependencyFileNotParseable.new(
           file.path,
-          "This terraform provider syntax is now deprecated.\n"\
-          "See https://www.terraform.io/docs/language/providers/requirements.html "\
+          "This terraform provider syntax is now deprecated.\n" \
+          "See https://www.terraform.io/docs/language/providers/requirements.html " \
           "for the new Terraform v0.13+ provider syntax."
         )
       end
@@ -126,15 +149,8 @@ module Dependabot
         details.is_a?(String)
       end
 
-      def build_terragrunt_dependency(file, details)
-        source = source_from(details)
-        dep_name =
-          if Source.from_url(source[:url])
-            Source.from_url(source[:url]).repo
-          else
-            source[:url]
-          end
-
+      def build_terragrunt_dependency(file, source)
+        dep_name = Source.from_url(source[:url]) ? T.must(Source.from_url(source[:url])).repo : source[:url]
         version = version_from_ref(source[:ref])
 
         Dependency.new(
@@ -153,7 +169,7 @@ module Dependabot
       # Full docs at https://www.terraform.io/docs/modules/sources.html
       def source_from(details_hash)
         raw_source = details_hash.fetch("source")
-        bare_source = get_proxied_source(raw_source)
+        bare_source = RegistryClient.get_proxied_source(raw_source)
 
         source_details =
           case source_type(bare_source)
@@ -163,6 +179,8 @@ module Dependabot
             git_source_details_from(bare_source)
           when :registry
             registry_source_details_from(bare_source)
+          when :interpolation
+            return nil
           end
 
         source_details[:proxy_url] = raw_source if raw_source != bare_source
@@ -171,10 +189,12 @@ module Dependabot
 
       def provider_source_from(source_address, name)
         matches = source_address&.match(PROVIDER_SOURCE_ADDRESS)
+        matches = {} if matches.nil?
+
         [
-          matches.try(:[], :hostname) || DEFAULT_REGISTRY,
-          matches.try(:[], :namespace) || DEFAULT_NAMESPACE,
-          matches.try(:[], :name) || name
+          matches[:hostname] || DEFAULT_REGISTRY,
+          matches[:namespace] || DEFAULT_NAMESPACE,
+          matches[:name] || name
         ]
       end
 
@@ -196,6 +216,20 @@ module Dependabot
         else
           msg = "Invalid registry source specified: '#{source_string}'"
           raise DependencyFileNotEvaluatable, msg
+        end
+      end
+
+      def git_dependency_name(name, source)
+        git_source = Source.from_url(source[:url])
+        if git_source && source[:ref]
+          name + "::" + git_source.provider + "::" + git_source.repo + "::" + source[:ref]
+        elsif git_source
+          name + "::" + git_source.provider + "::" + git_source.repo
+        elsif source[:ref]
+          name + "::git_provider::repo_name/git_repo(" \
+          + Digest::SHA1.hexdigest(source[:url]) + ")::" + source[:ref]
+        else
+          name + "::git_provider::repo_name/git_repo(" + Digest::SHA1.hexdigest(source[:url]) + ")"
         end
       end
 
@@ -229,44 +263,12 @@ module Dependabot
       end
 
       # rubocop:disable Metrics/PerceivedComplexity
-      # See https://www.terraform.io/docs/modules/sources.html#http-urls for
-      # details of how Terraform handle HTTP(S) sources for modules
-      def get_proxied_source(raw_source) # rubocop:disable Metrics/AbcSize
-        return raw_source unless raw_source.start_with?("http")
-
-        uri = URI.parse(raw_source.split(%r{(?<!:)//}).first)
-        return raw_source if uri.path.end_with?(*ARCHIVE_EXTENSIONS)
-        return raw_source if URI.parse(raw_source).query&.include?("archive=")
-
-        url = raw_source.split(%r{(?<!:)//}).first + "?terraform-get=1"
-        host = URI.parse(raw_source).host
-
-        response = Excon.get(
-          url,
-          idempotent: true,
-          **SharedHelpers.excon_defaults
-        )
-        raise PrivateSourceAuthenticationFailure, host if response.status == 401
-
-        return response.headers["X-Terraform-Get"] if response.headers["X-Terraform-Get"]
-
-        doc = Nokogiri::XML(response.body)
-        doc.css("meta").find do |tag|
-          tag.attributes&.fetch("name", nil)&.value == "terraform-get"
-        end&.attributes&.fetch("content", nil)&.value
-      rescue Excon::Error::Socket, Excon::Error::Timeout => e
-        raise PrivateSourceAuthenticationFailure, host if e.message.include?("no address for")
-
-        raw_source
-      end
-      # rubocop:enable Metrics/PerceivedComplexity
-
-      # rubocop:disable Metrics/PerceivedComplexity
       def source_type(source_string)
+        return :interpolation if source_string.include?("${")
         return :path if source_string.start_with?(".")
-        return :github if source_string.include?("github.com")
+        return :github if source_string.start_with?("github.com/")
         return :bitbucket if source_string.start_with?("bitbucket.org/")
-        return :git if source_string.start_with?("git::")
+        return :git if source_string.start_with?("git::", "git@")
         return :mercurial if source_string.start_with?("hg::")
         return :s3 if source_string.start_with?("s3::")
 
@@ -276,7 +278,7 @@ module Dependabot
 
         path_uri = URI.parse(source_string.split(%r{(?<!:)//}).first)
         query_uri = URI.parse(source_string)
-        return :http_archive if path_uri.path.end_with?(*ARCHIVE_EXTENSIONS)
+        return :http_archive if path_uri.path.end_with?(*RegistryClient::ARCHIVE_EXTENSIONS)
         return :http_archive if query_uri.query&.include?("archive=")
 
         raise "HTTP source, but not an archive!"
@@ -357,22 +359,22 @@ module Dependabot
       def determine_version_for(hostname, namespace, name, constraint)
         return constraint if constraint&.match?(/\A\d/)
 
-        lock_file_content.
-          dig("provider", "#{hostname}/#{namespace}/#{name}", 0, "version")
+        lockfile_content
+          .dig("provider", "#{hostname}/#{namespace}/#{name}", 0, "version")
       end
 
-      def lock_file_content
-        @lock_file_content ||=
+      def lockfile_content
+        @lockfile_content ||=
           begin
-            lock_file = dependency_files.find do |file|
+            lockfile = dependency_files.find do |file|
               file.name == ".terraform.lock.hcl"
             end
-            lock_file ? parsed_file(lock_file) : {}
+            lockfile ? parsed_file(lockfile) : {}
           end
       end
     end
   end
 end
 
-Dependabot::FileParsers.
-  register("terraform", Dependabot::Terraform::FileParser)
+Dependabot::FileParsers
+  .register("terraform", Dependabot::Terraform::FileParser)

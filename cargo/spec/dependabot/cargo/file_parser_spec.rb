@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -112,10 +113,10 @@ RSpec.describe Dependabot::Cargo::FileParser do
         let(:manifest_fixture_name) { "workspace_child" }
 
         it "raises a helpful error" do
-          expect { parser.parse }.
-            to raise_error(Dependabot::DependencyFileNotEvaluatable) do |error|
-              expect(error.message).
-                to include("This project is part of a Rust workspace")
+          expect { parser.parse }
+            .to raise_error(Dependabot::DependencyFileNotEvaluatable) do |error|
+              expect(error.message)
+                .to include("This project is part of a Rust workspace")
             end
         end
       end
@@ -365,6 +366,58 @@ RSpec.describe Dependabot::Cargo::FileParser do
         end
       end
 
+      context "with workspace dependencies" do
+        let(:manifest_fixture_name) { "workspace_dependencies_root" }
+        let(:lockfile_fixture_name) { "workspace_dependencies" }
+        let(:files) do
+          [
+            manifest,
+            lockfile,
+            workspace_child
+          ]
+        end
+        let(:workspace_child) do
+          Dependabot::DependencyFile.new(
+            name: "lib/inherit_ws_dep/Cargo.toml",
+            content: fixture("manifests", "workspace_dependencies_child")
+          )
+        end
+
+        describe "top level dependencies" do
+          subject(:top_level_dependencies) do
+            dependencies.select(&:top_level?)
+          end
+
+          its(:length) { is_expected.to eq(1) }
+
+          describe "the first dependency" do
+            subject(:dependency) { top_level_dependencies.first }
+
+            it "has the right details" do
+              expect(dependency).to be_a(Dependabot::Dependency)
+              expect(dependency.name).to eq("log")
+              expect(dependency.version).to eq("0.4.0")
+              expect(dependency.requirements).to eq(
+                [
+                  {
+                    requirement: "=0.4.0",
+                    file: "Cargo.toml",
+                    groups: ["workspace.dependencies"],
+                    source: nil
+                  },
+                  {
+                    requirement: nil,
+                    file: "lib/inherit_ws_dep/Cargo.toml",
+                    groups: ["dependencies"],
+                    source: nil
+                  }
+                ]
+              )
+            end
+          end
+        end
+      end
+
       context "with a git dependency" do
         let(:manifest_fixture_name) { "git_dependency" }
 
@@ -472,8 +525,8 @@ RSpec.describe Dependabot::Cargo::FileParser do
         let(:manifest_fixture_name) { "unparseable" }
 
         it "raises a DependencyFileNotParseable error" do
-          expect { parser.parse }.
-            to raise_error(Dependabot::DependencyFileNotParseable) do |error|
+          expect { parser.parse }
+            .to raise_error(Dependabot::DependencyFileNotParseable) do |error|
               expect(error.file_name).to eq("Cargo.toml")
             end
         end
@@ -483,8 +536,8 @@ RSpec.describe Dependabot::Cargo::FileParser do
         let(:manifest_fixture_name) { "unparseable_value_overwrite" }
 
         it "raises a DependencyFileNotParseable error" do
-          expect { parser.parse }.
-            to raise_error(Dependabot::DependencyFileNotParseable) do |error|
+          expect { parser.parse }
+            .to raise_error(Dependabot::DependencyFileNotParseable) do |error|
               expect(error.file_name).to eq("Cargo.toml")
             end
         end
@@ -679,8 +732,8 @@ RSpec.describe Dependabot::Cargo::FileParser do
             it "has the right details" do
               expect(dependency).to be_a(Dependabot::Dependency)
               expect(dependency.name).to eq("utf8-ranges")
-              expect(dependency.version).
-                to eq("d5094c7e9456f2965dec20de671094a98c6929c2")
+              expect(dependency.version)
+                .to eq("d5094c7e9456f2965dec20de671094a98c6929c2")
               expect(dependency.requirements).to eq(
                 [{
                   requirement: nil,
@@ -707,8 +760,8 @@ RSpec.describe Dependabot::Cargo::FileParser do
               it "has the right details" do
                 expect(dependency).to be_a(Dependabot::Dependency)
                 expect(dependency.name).to eq("utf8-ranges")
-                expect(dependency.version).
-                  to eq("83141b376b93484341c68fbca3ca110ae5cd2708")
+                expect(dependency.version)
+                  .to eq("83141b376b93484341c68fbca3ca110ae5cd2708")
                 expect(dependency.requirements).to eq(
                   [{
                     requirement: nil,
@@ -732,7 +785,7 @@ RSpec.describe Dependabot::Cargo::FileParser do
           let(:lockfile_fixture_name) { "feature_dependency" }
 
           describe "the first dependency" do
-            subject(:dependency) { dependencies.select(&:top_level?).first }
+            subject(:dependency) { dependencies.find(&:top_level?) }
 
             it "has the right details" do
               expect(dependency).to be_a(Dependabot::Dependency)
@@ -753,7 +806,7 @@ RSpec.describe Dependabot::Cargo::FileParser do
             let(:manifest_fixture_name) { "feature_dependency_no_version" }
 
             describe "the first dependency" do
-              subject(:dependency) { dependencies.select(&:top_level?).first }
+              subject(:dependency) { dependencies.find(&:top_level?) }
 
               it "has the right details" do
                 expect(dependency).to be_a(Dependabot::Dependency)
@@ -789,8 +842,8 @@ RSpec.describe Dependabot::Cargo::FileParser do
         let(:lockfile_fixture_name) { "unparseable" }
 
         it "raises a DependencyFileNotParseable error" do
-          expect { parser.parse }.
-            to raise_error(Dependabot::DependencyFileNotParseable) do |error|
+          expect { parser.parse }
+            .to raise_error(Dependabot::DependencyFileNotParseable) do |error|
               expect(error.file_name).to eq("Cargo.lock")
             end
         end

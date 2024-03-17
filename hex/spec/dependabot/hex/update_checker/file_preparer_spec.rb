@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -95,16 +96,34 @@ RSpec.describe Dependabot::Hex::UpdateChecker::FilePreparer do
         let(:mixfile_fixture_name) { "loads_file" }
 
         it "removes the call to load the file" do
-          expect(prepared_mixfile.content).
-            to include('@version String.trim("0.0.1")')
+          expect(prepared_mixfile.content)
+            .to include('@version String.trim("0.0.1")')
         end
 
         context "an the loading is done without a !" do
           let(:mixfile_fixture_name) { "loads_file_without_bang" }
 
           it "removes the call to load the file" do
-            expect(prepared_mixfile.content).
-              to include('@version String.trim({:ok, "0.0.1"})')
+            expect(prepared_mixfile.content)
+              .to include('@version String.trim({:ok, "0.0.1"})')
+          end
+        end
+
+        context "when file loading is done with pipes" do
+          let(:mixfile_fixture_name) { "loads_file_with_pipes" }
+
+          it "removes the call to load the file" do
+            expect(prepared_mixfile.content)
+              .to include('@version {:ok, "0.0.1"} |> String.trim()')
+          end
+        end
+
+        context "when file loading is done with pipes and a !" do
+          let(:mixfile_fixture_name) { "loads_file_with_pipes_and_bang" }
+
+          it "removes the call to load the file" do
+            expect(prepared_mixfile.content)
+              .to include('@version "0.0.1" |> String.trim()')
           end
         end
       end
@@ -128,8 +147,8 @@ RSpec.describe Dependabot::Hex::UpdateChecker::FilePreparer do
           let(:latest_allowable_version) { Gem::Version.new("1.6.0") }
 
           it "updates the requirement" do
-            expect(prepared_mixfile.content).
-              to include('{:plug, ">= 1.3.0 and <= 1.6.0"}')
+            expect(prepared_mixfile.content)
+              .to include('{:plug, ">= 1.3.0 and <= 1.6.0"}')
           end
         end
 
@@ -153,8 +172,8 @@ RSpec.describe Dependabot::Hex::UpdateChecker::FilePreparer do
             end
 
             it "updates the requirement" do
-              expect(prepared_mixfile.content).
-                to include('{:phoenix, ">= 1.2.0-rc.0"}')
+              expect(prepared_mixfile.content)
+                .to include('{:phoenix, ">= 1.2.0-rc.0"}')
             end
           end
         end
@@ -181,7 +200,7 @@ RSpec.describe Dependabot::Hex::UpdateChecker::FilePreparer do
 
         it "updates the pin" do
           expect(prepared_mixfile.content).to include(
-            '{:phoenix, ">= 0", github: "dependabot-fixtures/phoenix", '\
+            '{:phoenix, ">= 0", github: "dependabot-fixtures/phoenix", ' \
             'ref: "v1.2.1"}'
           )
         end
@@ -191,8 +210,8 @@ RSpec.describe Dependabot::Hex::UpdateChecker::FilePreparer do
 
           it "updates the pin" do
             expect(prepared_mixfile.content).to include(
-              '{:phoenix, ">= 0", github: "dependabot-fixtures/phoenix", '\
-              "ref: \'v1.2.1\'}"
+              '{:phoenix, ">= 0", github: "dependabot-fixtures/phoenix", ' \
+              "ref: 'v1.2.1'}"
             )
           end
         end

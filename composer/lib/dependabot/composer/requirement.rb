@@ -1,13 +1,18 @@
+# typed: true
 # frozen_string_literal: true
 
+require "sorbet-runtime"
+
+require "dependabot/requirement"
 require "dependabot/utils"
 
 module Dependabot
   module Composer
-    class Requirement < Gem::Requirement
-      AND_SEPARATOR =
-        /(?<=[a-zA-Z0-9*])(?<!\sas)[\s,]+(?![\s,]*[|-]|as)/.freeze
-      OR_SEPARATOR = /(?<=[a-zA-Z0-9*])[\s,]*\|\|?\s*/.freeze
+    class Requirement < Dependabot::Requirement
+      extend T::Sig
+
+      AND_SEPARATOR = /(?<=[a-zA-Z0-9*])(?<!\sas)[\s,]+(?![\s,]*[|-]|as)/
+      OR_SEPARATOR = /(?<=[a-zA-Z0-9*])[\s,]*\|\|?\s*/
 
       def self.parse(obj)
         new_obj = obj.gsub(/@\w+/, "").gsub(/[a-z0-9\-_\.]*\sas\s+/i, "")
@@ -18,17 +23,18 @@ module Dependabot
 
       # Returns an array of requirements. At least one requirement from the
       # returned array must be satisfied for a version to be valid.
+      sig { override.params(requirement_string: T.nilable(String)).returns(T::Array[Requirement]) }
       def self.requirements_array(requirement_string)
-        requirement_string.strip.split(OR_SEPARATOR).map do |req_string|
+        T.must(requirement_string).strip.split(OR_SEPARATOR).map do |req_string|
           new(req_string)
         end
       end
 
       def initialize(*requirements)
         requirements =
-          requirements.flatten.
-          flat_map { |req_string| req_string.split(AND_SEPARATOR) }.
-          flat_map { |req| convert_php_constraint_to_ruby_constraint(req) }
+          requirements.flatten
+                      .flat_map { |req_string| req_string.split(AND_SEPARATOR) }
+                      .flat_map { |req| convert_php_constraint_to_ruby_constraint(req) }
 
         super(requirements)
       end
@@ -48,7 +54,8 @@ module Dependabot
         elsif req_string.match?(/^~[^>]/) then convert_tilde_req(req_string)
         elsif req_string.include?(".x") then convert_wildcard_req(req_string)
         elsif req_string.match?(/\s-\s/) then convert_hyphen_req(req_string)
-        else req_string
+        else
+          req_string
         end
       end
 
@@ -76,7 +83,8 @@ module Dependabot
         upper_bound = parts.map.with_index do |part, i|
           if i < first_non_zero_index then part
           elsif i == first_non_zero_index then (part.to_i + 1).to_s
-          else 0
+          else
+            0
           end
         end.join(".")
 
@@ -99,5 +107,5 @@ module Dependabot
   end
 end
 
-Dependabot::Utils.
-  register_requirement_class("composer", Dependabot::Composer::Requirement)
+Dependabot::Utils
+  .register_requirement_class("composer", Dependabot::Composer::Requirement)

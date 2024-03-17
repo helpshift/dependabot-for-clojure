@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -38,7 +39,7 @@ RSpec.describe namespace::MetadataPresenter do
 
   let(:vulnerabilities_fixed) { [] }
 
-  let(:github_redirection_service) { "github-redirect.dependabot.com" }
+  let(:github_redirection_service) { "redirect.github.com" }
 
   subject(:presenter) do
     described_class.new(
@@ -53,8 +54,8 @@ RSpec.describe namespace::MetadataPresenter do
   describe "#to_s" do
     context "with a changelog that requires truncation" do
       before do
-        allow(metadata_finder).
-          to receive(:changelog_text) { fixture("raw", "changelog.md") }
+        allow(metadata_finder)
+          .to receive(:changelog_text) { fixture("raw", "changelog.md") }
       end
 
       it "adds a truncation notice" do
@@ -63,6 +64,22 @@ RSpec.describe namespace::MetadataPresenter do
 
       it "removes all content after the 50th line" do
         expect(presenter.to_s).not_to include("## 1.0.0 - June 11, 2014")
+      end
+
+      context "with an azure source" do
+        let(:source) { Dependabot::Source.new(provider: "azure", repo: "gc/bp") }
+
+        it "adds a truncation notice" do
+          expect(presenter.to_s).to include("(truncated)")
+        end
+
+        it "does not include a closing table fragment" do
+          expect(presenter.to_s).not_to include("></tr></table>")
+        end
+
+        it "removes all content after the 50th line" do
+          expect(presenter.to_s).not_to include("## 1.0.0 - June 11, 2014")
+        end
       end
     end
   end

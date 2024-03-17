@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -53,7 +54,7 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
   end
   let(:tmp_path) { Dependabot::Utils::BUMP_TMP_DIR_PATH }
 
-  before { Dir.mkdir(tmp_path) unless Dir.exist?(tmp_path) }
+  before { FileUtils.mkdir_p(tmp_path) }
 
   describe "the updated lockfile" do
     subject(:updated_lockfile_content) do
@@ -179,8 +180,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
 
         it "has details of the updated item" do
           expect(updated_lockfile_content).to include("\"version\":\"v5.4.36\"")
-          expect(updated_lockfile_content).
-            to include("\"platform-overrides\":{\"php\":\"5.6.4\"}")
+          expect(updated_lockfile_content)
+            .to include("\"platform-overrides\":{\"php\":\"5.6.4\"}")
         end
       end
     end
@@ -199,7 +200,7 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       it "raises a helpful error" do
         expect { updated_lockfile_content }.to raise_error do |error|
           expect(error.message).to include("Your requirements could not be resolved to an installable set of packages.")
-          expect(error.message).to include("requires composer-plugin-api ^1.0 -> found composer-plugin-api[2.1.0]")
+          expect(error.message).to include("requires composer-plugin-api ^1.0 -> found composer-plugin-api[2.6.0]")
           expect(error).to be_a Dependabot::DependencyFileNotResolvable
         end
       end
@@ -262,7 +263,7 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       it "raises a helpful error" do
         expect { updated_lockfile_content }.to raise_error do |error|
           expect(error.message).to include("Your requirements could not be resolved to an installable set of packages.")
-          expect(error.message).to include("requires composer-plugin-api ^1.0 -> found composer-plugin-api[2.1.0]")
+          expect(error.message).to include("requires composer-plugin-api ^1.0 -> found composer-plugin-api[2.6.0]")
           expect(error).to be_a Dependabot::DependencyFileNotResolvable
         end
       end
@@ -311,37 +312,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       let(:project_name) { "env_variable" }
 
       context "that hasn't been provided" do
-        it "raises a MissingEnvironmentVariable error" do
-          expect { updated_lockfile_content }.to raise_error do |error|
-            expect(error).to be_a(Dependabot::MissingEnvironmentVariable)
-            expect(error.message).to eq("Missing environment variable ACF_PRO_KEY")
-          end
-        end
-      end
-
-      context "that has been provided" do
-        let(:updater) do
-          described_class.new(
-            dependency_files: files,
-            dependencies: [dependency],
-            credentials: [{
-              "type" => "git_source",
-              "host" => "github.com",
-              "username" => "x-access-token",
-              "password" => "token"
-            }, {
-              "type" => "php_environment_variable",
-              "env-key" => "ACF_PRO_KEY",
-              "env-value" => "example_key"
-            }]
-          )
-        end
-
-        it "runs just fine (we get a 404 here because our key is wrong)" do
-          expect { updated_lockfile_content }.to raise_error do |error|
-            expect(error).to be_a(Dependabot::DependencyFileNotResolvable)
-            expect(error.message).to include("404")
-          end
+        it "does not attempt to download and has details of the updated item" do
+          expect(updated_lockfile_content).to include("\"version\":\"5.9.2\"")
         end
       end
     end
@@ -400,9 +372,9 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       end
 
       it "has details of the updated item" do
-        updated_dep = JSON.parse(updated_lockfile_content).
-                      fetch("packages").
-                      find { |p| p["name"] == "monolog/monolog" }
+        updated_dep = JSON.parse(updated_lockfile_content)
+                          .fetch("packages")
+                          .find { |p| p["name"] == "monolog/monolog" }
 
         expect(updated_dep.fetch("version")).to eq("1.0.2")
       end
@@ -432,8 +404,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
 
       it "has details of the updated item" do
         expect(updated_lockfile_content).to include("\"version\":\"v5.2.45\"")
-        expect(updated_lockfile_content).
-          to include("22bde7b048a33c702d9737fc1446234fff9b1363")
+        expect(updated_lockfile_content)
+          .to include("22bde7b048a33c702d9737fc1446234fff9b1363")
       end
 
       context "and is limited by a library's PHP version" do
@@ -452,8 +424,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
 
         it "has details of the updated item" do
           expect(updated_lockfile_content).to include("\"version\":\"v1.1.0\"")
-          expect(updated_lockfile_content).
-            to include("90b2128806bfde671b6952ab8bea493942c1fdae")
+          expect(updated_lockfile_content)
+            .to include("90b2128806bfde671b6952ab8bea493942c1fdae")
         end
       end
     end
@@ -484,6 +456,7 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       end
 
       context "with good credentials" do
+        let(:gemfury_deploy_token) { ENV.fetch("GEMFURY_DEPLOY_TOKEN", nil) }
         let(:credentials) do
           [{
             "type" => "git_source",
@@ -493,12 +466,13 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
           }, {
             "type" => "composer_repository",
             "registry" => "php.fury.io",
-            "username" => "yFu9PBmw1HxNjFB818TW", # Throwaway account
+            "username" => gemfury_deploy_token,
             "password" => ""
           }]
         end
 
         it "has details of the updated item" do
+          skip("skipped because env var GEMFURY_DEPLOY_TOKEN is not set") if gemfury_deploy_token.nil?
           expect(updated_lockfile_content).to include("\"version\":\"2.2.0\"")
         end
       end
@@ -544,11 +518,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
           }]
         end
 
-        it "raises a helpful errors" do
-          expect { updated_lockfile_content }.to raise_error do |error|
-            expect(error).to be_a Dependabot::PrivateSourceAuthenticationFailure
-            expect(error.source).to eq("nova.laravel.com")
-          end
+        it "does not attempt to download and has details of the updated item" do
+          expect(updated_lockfile_content).to include("\"version\":\"v2.0.9\"")
         end
       end
     end
@@ -577,11 +548,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
         )
       end
 
-      it "raises a helpful errors" do
-        expect { updated_lockfile_content }.to raise_error do |error|
-          expect(error).to be_a Dependabot::GitDependencyReferenceNotFound
-          expect(error.dependency).to eq("monolog/monolog")
-        end
+      it "does not attempt to install it and has details of the updated item" do
+        expect(updated_lockfile_content).to include("\"version\":\"v1.6.0\"")
       end
     end
 
@@ -609,12 +577,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
         )
       end
 
-      it "raises a helpful errors" do
-        expect { updated_lockfile_content }.to raise_error do |error|
-          expect(error).to be_a Dependabot::GitDependencyReferenceNotFound
-          expect(error.dependency).
-            to eq("monolog/monolog")
-        end
+      it "does not attempt to install it and has details of the updated item" do
+        expect(updated_lockfile_content).to include("\"version\":\"v1.6.0\"")
       end
     end
 
@@ -644,15 +608,15 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
 
       it "updates the lockfile correctly" do
         # Doesn't update the commit SHA of the git dependency
-        expect(updated_lockfile_content).
-          to include('"5267b03b1e4861c4657ede17a88f13ef479db482"')
-        expect(updated_lockfile_content).
-          to_not include('"303b8a83c87d5c6d749926cf02620465a5dcd0f2"')
+        expect(updated_lockfile_content)
+          .to include('"5267b03b1e4861c4657ede17a88f13ef479db482"')
+        expect(updated_lockfile_content)
+          .to_not include('"303b8a83c87d5c6d749926cf02620465a5dcd0f2"')
         expect(updated_lockfile_content).to include('"version":"dev-example"')
 
         # Does update the specified dependency
-        expect(updated_lockfile_content).
-          to include('"2ec8b39c38cb16674bbf3fea2b6ce5bf117e1296"')
+        expect(updated_lockfile_content)
+          .to include('"2ec8b39c38cb16674bbf3fea2b6ce5bf117e1296"')
         expect(updated_lockfile_content).to include('"version":"v1.6.0"')
 
         # Cleans up the additions we made
@@ -687,8 +651,8 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       it "raises a helpful errors" do
         expect { updated_lockfile_content }.to raise_error do |error|
           expect(error).to be_a Dependabot::GitDependenciesNotReachable
-          expect(error.dependency_urls).
-            to eq(["https://github.com/no-exist-sorry/monolog.git"])
+          expect(error.dependency_urls)
+            .to eq(["https://github.com/no-exist-sorry/monolog.git"])
         end
       end
     end
@@ -718,12 +682,12 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       end
 
       it "doesn't strip the patches" do
-        updated_dep = JSON.parse(updated_lockfile_content).
-                      fetch("packages").
-                      find { |p| p["name"] == "ehime/hello-world" }
+        updated_dep = JSON.parse(updated_lockfile_content)
+                          .fetch("packages")
+                          .find { |p| p["name"] == "ehime/hello-world" }
 
-        expect(updated_dep.dig("extra", "patches_applied")).
-          to include("[PATCH] markdown modified")
+        expect(updated_dep.dig("extra", "patches_applied"))
+          .to include("[PATCH] markdown modified")
       end
     end
 
@@ -749,17 +713,6 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
           }],
           package_manager: "composer"
         )
-      end
-
-      # This is a known issue in the composer-patches plugin and composer v2:
-      # https://github.com/cweagans/composer-patches/issues/338
-      pending "doesn't strip the patches" do
-        updated_dep = JSON.parse(updated_lockfile_content).
-                      fetch("packages").
-                      find { |p| p["name"] == "ehime/hello-world" }
-
-        expect(updated_dep.dig("extra", "patches_applied")).
-          to include("[PATCH] markdown modified")
       end
     end
 
@@ -788,12 +741,12 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       end
 
       it "has details of the updated item" do
-        updated_dep = JSON.parse(updated_lockfile_content).
-                      fetch("packages-dev").
-                      find { |p| p["name"] == "monolog/monolog" }
+        updated_dep = JSON.parse(updated_lockfile_content)
+                          .fetch("packages-dev")
+                          .find { |p| p["name"] == "monolog/monolog" }
 
-        expect(Gem::Version.new(updated_dep.fetch("version"))).
-          to be >= Gem::Version.new("1.23.0")
+        expect(Gem::Version.new(updated_dep.fetch("version")))
+          .to be >= Gem::Version.new("1.23.0")
       end
     end
 
@@ -881,10 +834,10 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       end
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { updated_lockfile_content }.
-          to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
-            expect(error.dependency_urls).
-              to eq(["https://github.com/no-exist-sorry/monolog.git"])
+        expect { updated_lockfile_content }
+          .to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
+            expect(error.dependency_urls)
+              .to eq(["https://github.com/no-exist-sorry/monolog.git"])
           end
       end
     end
@@ -913,10 +866,10 @@ RSpec.describe Dependabot::Composer::FileUpdater::LockfileUpdater do
       end
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { updated_lockfile_content }.
-          to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
-            expect(error.dependency_urls).
-              to eq(["https://github.com/dependabot-fixtures/this-repo-does-not-exist.git"])
+        expect { updated_lockfile_content }
+          .to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
+            expect(error.dependency_urls)
+              .to eq(["https://github.com/dependabot-fixtures/this-repo-does-not-exist.git"])
           end
       end
     end

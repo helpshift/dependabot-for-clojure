@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "nokogiri"
@@ -21,14 +22,15 @@ module Dependabot
       # - Any dependencies (incl. those in dependencyManagement or plugins)
       # - Any plugins (incl. those in pluginManagement)
       # - Any extensions
-      DEPENDENCY_SELECTOR = "project > parent, "\
-                            "dependencies > dependency, "\
-                            "extensions > extension"
+      DEPENDENCY_SELECTOR = "project > parent, " \
+                            "dependencies > dependency, " \
+                            "extensions > extension, " \
+                            "annotationProcessorPaths > path"
       PLUGIN_SELECTOR     = "plugins > plugin"
       EXTENSION_SELECTOR  = "extensions > extension"
 
       # Regex to get the property name from a declaration that uses a property
-      PROPERTY_REGEX      = /\$\{(?<property>.*?)\}/.freeze
+      PROPERTY_REGEX      = /\$\{(?<property>.*?)\}/
 
       def parse
         dependency_set = DependencySet.new
@@ -88,9 +90,6 @@ module Dependabot
         return unless (name = dependency_name(dependency_node, pom))
         return if internal_dependency_names.include?(name)
 
-        classifier = dependency_classifier(dependency_node, pom)
-        name = classifier ? "#{name}:#{classifier}" : name
-
         build_dependency(pom, dependency_node, name)
       end
 
@@ -118,8 +117,9 @@ module Dependabot
             groups: dependency_groups(pom, dependency_node),
             source: nil,
             metadata: {
-              packaging_type: packaging_type(pom, dependency_node)
-            }.merge(property_details)
+              packaging_type: packaging_type(pom, dependency_node),
+              classifier: dependency_classifier(dependency_node, pom)
+            }.merge(property_details).compact
           }]
         )
       end
@@ -208,8 +208,8 @@ module Dependabot
         return "pom" if dependency_node.node_name == "parent"
         return "jar" unless dependency_node.at_xpath("./type")
 
-        packaging_type_content = dependency_node.at_xpath("./type").
-                                 content.strip
+        packaging_type_content = dependency_node.at_xpath("./type")
+                                                .content.strip
 
         evaluated_value(packaging_type_content, pom)
       end
@@ -220,16 +220,16 @@ module Dependabot
         version_content = dependency_node.at_xpath("./version").content.strip
         return unless version_content.match?(PROPERTY_REGEX)
 
-        version_content.
-          match(PROPERTY_REGEX).
-          named_captures.fetch("property")
+        version_content
+          .match(PROPERTY_REGEX)
+          .named_captures.fetch("property")
       end
 
       def evaluated_value(value, pom)
         return value unless value.match?(PROPERTY_REGEX)
 
-        property_name = value.match(PROPERTY_REGEX).
-                        named_captures.fetch("property")
+        property_name = value.match(PROPERTY_REGEX)
+                             .named_captures.fetch("property")
         property_value = value_for_property(property_name, pom)
 
         new_value = value.gsub(value.match(PROPERTY_REGEX).to_s, property_value)
@@ -241,9 +241,9 @@ module Dependabot
         return unless property_name
 
         declaring_pom =
-          property_value_finder.
-          property_details(property_name: property_name, callsite_pom: pom)&.
-          fetch(:file)
+          property_value_finder
+          .property_details(property_name: property_name, callsite_pom: pom)
+          &.fetch(:file)
 
         return declaring_pom if declaring_pom
 
@@ -253,9 +253,9 @@ module Dependabot
 
       def value_for_property(property_name, pom)
         value =
-          property_value_finder.
-          property_details(property_name: property_name, callsite_pom: pom)&.
-          fetch(:value)
+          property_value_finder
+          .property_details(property_name: property_name, callsite_pom: pom)
+          &.fetch(:value)
 
         return value if value
 
@@ -267,13 +267,14 @@ module Dependabot
       # values from parent POMs)
       def property_value_finder
         @property_value_finder ||=
-          PropertyValueFinder.new(dependency_files: dependency_files)
+          PropertyValueFinder.new(dependency_files: dependency_files, credentials: credentials)
       end
 
       def pomfiles
-        # NOTE: this (correctly) excludes any parent POMs that were downloaded
         @pomfiles ||=
-          dependency_files.select { |f| f.name.end_with?("pom.xml") }
+          dependency_files.select do |f|
+            f.name.end_with?(".xml") && !f.name.end_with?("extensions.xml")
+          end
       end
 
       def extensionfiles
@@ -283,7 +284,7 @@ module Dependabot
 
       def internal_dependency_names
         @internal_dependency_names ||=
-          dependency_files.map do |pom|
+          dependency_files.filter_map do |pom|
             doc = Nokogiri::XML(pom.content)
             group_id = doc.at_css("project > groupId") ||
                        doc.at_css("project > parent > groupId")
@@ -292,7 +293,7 @@ module Dependabot
             next unless group_id && artifact_id
 
             [group_id.content.strip, artifact_id.content.strip].join(":")
-          end.compact
+          end
       end
 
       def check_required_files

@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -54,7 +55,7 @@ RSpec.describe Dependabot::Cargo::FileUpdater do
   end
   let(:tmp_path) { Dependabot::Utils::BUMP_TMP_DIR_PATH }
 
-  before { Dir.mkdir(tmp_path) unless Dir.exist?(tmp_path) }
+  before { FileUtils.mkdir_p(tmp_path) }
 
   describe "#updated_dependency_files" do
     subject(:updated_files) { updater.updated_dependency_files }
@@ -75,8 +76,8 @@ RSpec.describe Dependabot::Cargo::FileUpdater do
 
       context "if no files have changed" do
         it "raises a helpful error" do
-          expect { updater.updated_dependency_files }.
-            to raise_error("No files changed!")
+          expect { updater.updated_dependency_files }
+            .to raise_error("No files changed!")
         end
       end
 
@@ -98,10 +99,10 @@ RSpec.describe Dependabot::Cargo::FileUpdater do
           end
 
           it "includes the new requirement" do
-            expect(described_class::ManifestUpdater).
-              to receive(:new).
-              with(dependencies: [dependency], manifest: manifest).
-              and_call_original
+            expect(described_class::ManifestUpdater)
+              .to receive(:new)
+              .with(dependencies: [dependency], manifest: manifest)
+              .and_call_original
 
             expect(updated_manifest_content).to include(%(time = "0.1.38"))
             expect(updated_manifest_content).to include(%(regex = "0.1.41"))
@@ -117,17 +118,17 @@ RSpec.describe Dependabot::Cargo::FileUpdater do
         end
 
         it "updates the dependency version in the lockfile" do
-          expect(described_class::LockfileUpdater).
-            to receive(:new).
-            with(
+          expect(described_class::LockfileUpdater)
+            .to receive(:new)
+            .with(
               credentials: credentials,
               dependencies: [dependency],
               dependency_files: files
-            ).
-            and_call_original
+            )
+            .and_call_original
 
-          expect(updated_lockfile_content).
-            to include(%(name = "time"\nversion = "0.1.40"))
+          expect(updated_lockfile_content)
+            .to include(%(name = "time"\nversion = "0.1.40"))
           expect(updated_lockfile_content).to include(
             "d825be0eb33fda1a7e68012d51e9c7f451dc1a69391e7fdc197060bb8c56667b"
           )

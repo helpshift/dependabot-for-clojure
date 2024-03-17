@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -48,8 +49,8 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:project_name) { "invalid_version_constraint" }
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::DependencyFileNotResolvable)
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::DependencyFileNotResolvable)
       end
     end
 
@@ -124,8 +125,8 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:project_name) { "requires_self" }
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::DependencyFileNotResolvable) do |error|
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::DependencyFileNotResolvable) do |error|
             expect(error.message).to include("cannot require itself")
           end
       end
@@ -145,8 +146,8 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:project_name) { "local_vcs_source" }
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::DependencyFileNotResolvable)
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::DependencyFileNotResolvable)
       end
     end
 
@@ -158,10 +159,10 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:latest_allowable_version) { Gem::Version.new("6.0.0") }
 
       it "raises a Dependabot::PrivateSourceTimedOut error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::DependencyFileNotResolvable) do |error|
-            expect(error.message).to start_with(
-              'The "https://dependabot.com/composer-not-found/packages.json"'\
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::DependencyFileNotResolvable) do |error|
+            expect(error.message).to include(
+              'The "https://github.com/dependabot/composer-not-found/packages.json"' \
               " file could not be downloaded"
             )
           end
@@ -174,12 +175,12 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:dependency_version) { "2.0.4" }
       let(:string_req) { "2.0.4" }
 
-      before { ENV["DEPENDABOT_TEST_MEMORY_ALLOCATION"] = "16G" }
+      before { ENV["DEPENDABOT_TEST_MEMORY_ALLOCATION"] = "32G" }
       after { ENV.delete("DEPENDABOT_TEST_MEMORY_ALLOCATION") }
 
       it "raises a Dependabot::OutOfMemory error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::OutOfMemory)
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::OutOfMemory)
       end
     end
 
@@ -205,8 +206,8 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:project_name) { "unreachable_path_vcs_source" }
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::DependencyFileNotResolvable)
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::DependencyFileNotResolvable)
       end
     end
 
@@ -223,8 +224,8 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:project_name) { "invalid_version_string" }
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::DependencyFileNotResolvable)
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::DependencyFileNotResolvable)
       end
     end
 
@@ -232,10 +233,10 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:project_name) { "v1/vcs_source_unreachable" }
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
-            expect(error.dependency_urls).
-              to eq(["https://github.com/dependabot-fixtures/this-repo-does-not-exist.git"])
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
+            expect(error.dependency_urls)
+              .to eq(["https://github.com/dependabot-fixtures/this-repo-does-not-exist.git"])
           end
       end
     end
@@ -244,10 +245,10 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
       let(:project_name) { "vcs_source_unreachable" }
 
       it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
-            expect(error.dependency_urls).
-              to eq(["https://github.com/dependabot-fixtures/this-repo-does-not-exist.git"])
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
+            expect(error.dependency_urls)
+              .to eq(["https://github.com/dependabot-fixtures/this-repo-does-not-exist.git"])
           end
       end
     end
@@ -265,30 +266,32 @@ RSpec.describe Dependabot::Composer::UpdateChecker::VersionResolver do
         }]
       end
 
-      it "raises a Dependabot::DependencyFileNotResolvable error" do
-        expect { resolver.latest_resolvable_version }.
-          to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
-            expect(error.dependency_urls).
-              to eq(["https://github.com/no-exist-sorry/monolog.git"])
+      it "raises a Dependabot::GitDependenciesNotReachable error" do
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::GitDependenciesNotReachable) do |error|
+            expect(error.dependency_urls)
+              .to eq(["https://github.com/no-exist-sorry/monolog.git"])
           end
       end
     end
 
-    # This test is extremely slow, as it needs to wait for Composer to time out.
-    # As a result we currently keep it commented out.
-    # context "with an unreachable private registry" do
-    #   let(:project_name) { "unreachable_private_registry" }
-    #   let(:dependency_name) { "dependabot/dummy-pkg-a" }
-    #   let(:dependency_version) { nil }
-    #   let(:string_req) { "*" }
-    #   let(:latest_allowable_version) { Gem::Version.new("6.0.0") }
+    context "with an unreachable private registry" do
+      let(:project_name) { "unreachable_private_registry" }
+      let(:dependency_name) { "dependabot/dummy-pkg-a" }
+      let(:dependency_version) { nil }
+      let(:string_req) { "*" }
+      let(:latest_allowable_version) { Gem::Version.new("6.0.0") }
 
-    #   it "raises a Dependabot::PrivateSourceTimedOut error" do
-    #     expect { resolver.latest_resolvable_version }.
-    #       to raise_error(Dependabot::PrivateSourceTimedOut) do |error|
-    #         expect(error.source).to eq("https://composer.dependabot.com")
-    #       end
-    #   end
-    # end
+      before { ENV["COMPOSER_PROCESS_TIMEOUT"] = "1" }
+      after { ENV.delete("COMPOSER_PROCESS_TIMEOUT") }
+
+      it "raises a Dependabot::PrivateSourceTimedOut error" do
+        pending("TODO: this URL has no DNS record post GitHub acquisition, so switch to a routable URL that hangs")
+        expect { resolver.latest_resolvable_version }
+          .to raise_error(Dependabot::PrivateSourceTimedOut) do |error|
+            expect(error.source).to eq("https://composer.dependabot.com")
+          end
+      end
+    end
   end
 end

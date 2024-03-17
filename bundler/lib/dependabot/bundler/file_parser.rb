@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/dependency"
@@ -16,6 +17,7 @@ module Dependabot
       require "dependabot/file_parsers/base/dependency_set"
       require "dependabot/bundler/file_parser/file_preparer"
       require "dependabot/bundler/file_parser/gemfile_declaration_finder"
+      require "dependabot/bundler/file_parser/gemspec_declaration_finder"
 
       def parse
         dependency_set = DependencySet.new
@@ -23,7 +25,6 @@ module Dependabot
         dependency_set += gemspec_dependencies
         dependency_set += lockfile_dependencies
         check_external_code(dependency_set.dependencies)
-        instrument_package_manager_version
         dependency_set.dependencies
       end
 
@@ -43,34 +44,23 @@ module Dependabot
         end
       end
 
-      def instrument_package_manager_version
-        version = Helpers.detected_bundler_version(lockfile)
-        Dependabot.instrument(
-          Notifications::FILE_PARSER_PACKAGE_MANAGER_VERSION_PARSED,
-          ecosystem: "bundler",
-          package_managers: {
-            "bundler" => version
-          }
-        )
-      end
-
       def gemfile_dependencies
         dependencies = DependencySet.new
 
         return dependencies unless gemfile
 
         [gemfile, *evaled_gemfiles].each do |file|
+          gemfile_declaration_finder = GemfileDeclarationFinder.new(gemfile: file)
+
           parsed_gemfile.each do |dep|
-            gemfile_declaration_finder =
-              GemfileDeclarationFinder.new(dependency: dep, gemfile: file)
-            next unless gemfile_declaration_finder.gemfile_includes_dependency?
+            next unless gemfile_declaration_finder.gemfile_includes_dependency?(dep)
 
             dependencies <<
               Dependency.new(
                 name: dep.fetch("name"),
                 version: dependency_version(dep.fetch("name"))&.to_s,
                 requirements: [{
-                  requirement: gemfile_declaration_finder.enhanced_req_string,
+                  requirement: gemfile_declaration_finder.enhanced_req_string(dep),
                   groups: dep.fetch("groups").map(&:to_sym),
                   source: dep.fetch("source")&.transform_keys(&:to_sym),
                   file: file.name
@@ -87,7 +77,11 @@ module Dependabot
         dependencies = DependencySet.new
 
         gemspecs.each do |gemspec|
+          gemspec_declaration_finder = GemspecDeclarationFinder.new(gemspec: gemspec)
+
           parsed_gemspec(gemspec).each do |dependency|
+            next unless gemspec_declaration_finder.gemspec_includes_dependency?(dependency)
+
             dependencies <<
               Dependency.new(
                 name: dependency.fetch("name"),
@@ -145,6 +139,7 @@ module Dependabot
             NativeHelpers.run_bundler_subprocess(
               bundler_version: bundler_version,
               function: "parsed_gemfile",
+              options: options,
               args: {
                 gemfile_name: gemfile.name,
                 lockfile_name: lockfile&.name,
@@ -175,6 +170,7 @@ module Dependabot
             NativeHelpers.run_bundler_subprocess(
               bundler_version: bundler_version,
               function: "parsed_gemspec",
+              options: options,
               args: {
                 gemspec_name: file.name,
                 lockfile_name: lockfile&.name,
@@ -188,13 +184,13 @@ module Dependabot
       end
 
       def base_directory
-        dependency_files.first.directory
+        dependency_files.first&.directory
       end
 
       def prepared_dependency_files
         @prepared_dependency_files ||=
-          FilePreparer.new(dependency_files: dependency_files).
-          prepared_dependency_files
+          FilePreparer.new(dependency_files: dependency_files)
+                      .prepared_dependency_files
       end
 
       def write_temporary_dependency_files
@@ -243,14 +239,14 @@ module Dependabot
       end
 
       def evaled_gemfiles
-        dependency_files.
-          reject { |f| f.name.end_with?(".gemspec") }.
-          reject { |f| f.name.end_with?(".specification") }.
-          reject { |f| f.name.end_with?(".lock") }.
-          reject { |f| f.name.end_with?(".ruby-version") }.
-          reject { |f| f.name == "Gemfile" }.
-          reject { |f| f.name == "gems.rb" }.
-          reject { |f| f.name == "gems.locked" }
+        dependency_files
+          .reject { |f| f.name.end_with?(".gemspec") }
+          .reject { |f| f.name.end_with?(".specification") }
+          .reject { |f| f.name.end_with?(".lock") }
+          .reject { |f| f.name.end_with?(".ruby-version") }
+          .reject { |f| f.name == "Gemfile" }
+          .reject { |f| f.name == "gems.rb" }
+          .reject { |f| f.name == "gems.locked" }
       end
 
       def lockfile
@@ -265,10 +261,10 @@ module Dependabot
 
       def production_dep_names
         @production_dep_names ||=
-          (gemfile_dependencies + gemspec_dependencies).dependencies.
-          select { |dep| production?(dep) }.
-          flat_map { |dep| expanded_dependency_names(dep) }.
-          uniq
+          (gemfile_dependencies + gemspec_dependencies).dependencies
+                                                       .select { |dep| production?(dep) }
+                                                       .flat_map { |dep| expanded_dependency_names(dep) }
+                                                       .uniq
       end
 
       def expanded_dependency_names(dep)
@@ -282,9 +278,9 @@ module Dependabot
       end
 
       def production?(dependency)
-        groups = dependency.requirements.
-                 flat_map { |r| r.fetch(:groups) }.
-                 map(&:to_s)
+        groups = dependency.requirements
+                           .flat_map { |r| r.fetch(:groups) }
+                           .map(&:to_s)
 
         return true if groups.empty?
         return true if groups.include?("runtime")
@@ -301,15 +297,14 @@ module Dependabot
 
       def gemspecs
         # Path gemspecs are excluded (they're supporting files)
-        @gemspecs ||= prepared_dependency_files.
-                      select { |file| file.name.end_with?(".gemspec") }.
-                      reject(&:support_file?)
+        @gemspecs ||= prepared_dependency_files
+                      .select { |file| file.name.end_with?(".gemspec") }
       end
 
       def imported_ruby_files
-        dependency_files.
-          select { |f| f.name.end_with?(".rb") }.
-          reject { |f| f.name == "gems.rb" }
+        dependency_files
+          .select { |f| f.name.end_with?(".rb") }
+          .reject { |f| f.name == "gems.rb" }
       end
 
       def bundler_version

@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/dependency"
@@ -12,10 +13,10 @@ module Dependabot
   module Python
     class FileParser
       class SetupFileParser
-        INSTALL_REQUIRES_REGEX = /install_requires\s*=\s*\[/m.freeze
-        SETUP_REQUIRES_REGEX = /setup_requires\s*=\s*\[/m.freeze
-        TESTS_REQUIRE_REGEX = /tests_require\s*=\s*\[/m.freeze
-        EXTRAS_REQUIRE_REGEX = /extras_require\s*=\s*\{/m.freeze
+        INSTALL_REQUIRES_REGEX = /install_requires\s*=\s*\[/m
+        SETUP_REQUIRES_REGEX = /setup_requires\s*=\s*\[/m
+        TESTS_REQUIRE_REGEX = /tests_require\s*=\s*\[/m
+        EXTRAS_REQUIRE_REGEX = /extras_require\s*=\s*\{/m
 
         CLOSING_BRACKET = { "[" => "]", "{" => "}" }.freeze
 
@@ -60,7 +61,7 @@ module Dependabot
             write_temporary_dependency_files
 
             requirements = SharedHelpers.run_helper_subprocess(
-              command: "pyenv exec python #{NativeHelpers.python_helper_path}",
+              command: "pyenv exec python3 #{NativeHelpers.python_helper_path}",
               function: "parse_setup",
               args: [Dir.pwd]
             )
@@ -81,7 +82,7 @@ module Dependabot
             write_sanitized_setup_file
 
             requirements = SharedHelpers.run_helper_subprocess(
-              command: "pyenv exec python #{NativeHelpers.python_helper_path}",
+              command: "pyenv exec python3 #{NativeHelpers.python_helper_path}",
               function: "parse_setup",
               args: [Dir.pwd]
             )
@@ -108,9 +109,9 @@ module Dependabot
         end
 
         def write_temporary_dependency_files
-          dependency_files.
-            reject { |f| f.name == ".python-version" }.
-            each do |file|
+          dependency_files
+            .reject { |f| f.name == ".python-version" }
+            .each do |file|
               path = file.name
               FileUtils.mkdir_p(Pathname.new(path).dirname)
               File.write(path, file.content)
@@ -128,7 +129,7 @@ module Dependabot
           tests_require = get_regexed_req_array(TESTS_REQUIRE_REGEX)
           extras_require = get_regexed_req_dict(EXTRAS_REQUIRE_REGEX)
 
-          tmp = "from setuptools import setup\n\n"\
+          tmp = "from setuptools import setup\n\n" \
                 "setup(name=\"sanitized-package\",version=\"0.0.1\","
 
           tmp += "install_requires=#{install_requires}," if install_requires

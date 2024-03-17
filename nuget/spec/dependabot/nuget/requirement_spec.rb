@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -23,6 +24,11 @@ RSpec.describe Dependabot::Nuget::Requirement do
       context "specifying pre-release versions" do
         let(:requirement_string) { "1.1-*" }
         it { is_expected.to eq(described_class.new("~> 1.1-a")) }
+      end
+
+      context "specifying highest version and pre-release versions" do
+        let(:requirement_string) { "*-*" }
+        it { is_expected.to eq(described_class.new(">= 0-a")) }
       end
     end
 

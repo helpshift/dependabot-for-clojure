@@ -1,6 +1,6 @@
+# typed: true
 # frozen_string_literal: true
 
-require "toml-rb"
 require "dependabot/dependency"
 require "dependabot/file_parsers"
 require "dependabot/file_parsers/base"
@@ -10,16 +10,15 @@ require "dependabot/python/requirement"
 require "dependabot/errors"
 require "dependabot/python/native_helpers"
 require "dependabot/python/name_normaliser"
+require "dependabot/python/pip_compile_file_matcher"
 
 module Dependabot
   module Python
     class FileParser < Dependabot::FileParsers::Base
       require_relative "file_parser/pipfile_files_parser"
-      require_relative "file_parser/poetry_files_parser"
+      require_relative "file_parser/pyproject_files_parser"
       require_relative "file_parser/setup_file_parser"
 
-      POETRY_DEPENDENCY_TYPES =
-        %w(tool.poetry.dependencies tool.poetry.dev-dependencies).freeze
       DEPENDENCY_GROUP_KEYS = [
         {
           pipfile: "packages",
@@ -42,7 +41,7 @@ module Dependabot
         dependency_set = DependencySet.new
 
         dependency_set += pipenv_dependencies if pipfile
-        dependency_set += poetry_dependencies if using_poetry?
+        dependency_set += pyproject_file_dependencies if pyproject
         dependency_set += requirement_dependencies if requirement_files.any?
         dependency_set += setup_file_dependencies if setup_file || setup_cfg_file
 
@@ -57,46 +56,48 @@ module Dependabot
 
       def pipenv_dependencies
         @pipenv_dependencies ||=
-          PipfileFilesParser.
-          new(dependency_files: dependency_files).
-          dependency_set
+          PipfileFilesParser
+          .new(dependency_files: dependency_files)
+          .dependency_set
       end
 
-      def poetry_dependencies
-        @poetry_dependencies ||=
-          PoetryFilesParser.
-          new(dependency_files: dependency_files).
-          dependency_set
+      def pyproject_file_dependencies
+        @pyproject_file_dependencies ||=
+          PyprojectFilesParser
+          .new(dependency_files: dependency_files)
+          .dependency_set
       end
 
       def requirement_dependencies
         dependencies = DependencySet.new
         parsed_requirement_files.each do |dep|
-          # This isn't ideal, but currently the FileUpdater won't update
-          # deps that appear in a requirements.txt and Pipenv / Poetry
-          # and *aren't* a straight lockfile for Pipenv / Poetry
-          next if included_in_pipenv_deps?(normalised_name(dep["name"]))
-          next if included_in_poetry_deps?(normalised_name(dep["name"]))
-
           # If a requirement has a `<`, `<=` or '==' marker then updating it is
           # probably blocked. Ignore it.
           next if blocking_marker?(dep)
 
+          name = dep["name"]
+          file = dep["file"]
+          version = dep["version"]
+          original_file = get_original_file(file)
+
           requirements =
-            if lockfile_for_pip_compile_file?(dep["file"]) then []
+            if original_file && pip_compile_file_matcher.lockfile_for_pip_compile_file?(original_file) then []
             else
               [{
                 requirement: dep["requirement"],
-                file: Pathname.new(dep["file"]).cleanpath.to_path,
+                file: Pathname.new(file).cleanpath.to_path,
                 source: nil,
-                groups: group_from_filename(dep["file"])
+                groups: group_from_filename(file)
               }]
             end
 
+          # PyYAML < 6.0 will cause `pip-compile` to fail due to incompatibility with Cython 3. Workaround it.
+          SharedHelpers.run_shell_command("pyenv exec pip install cython<3.0") if old_pyyaml?(name, version)
+
           dependencies <<
             Dependency.new(
-              name: normalised_name(dep["name"], dep["extras"]),
-              version: dep["version"]&.include?("*") ? nil : dep["version"],
+              name: normalised_name(name, dep["extras"]),
+              version: version&.include?("*") ? nil : version,
               requirements: requirements,
               package_manager: "pip"
             )
@@ -104,22 +105,18 @@ module Dependabot
         dependencies
       end
 
+      def old_pyyaml?(name, version)
+        major_version = version&.split(".")&.first
+        return false unless major_version
+
+        name == "pyyaml" && major_version < "6"
+      end
+
       def group_from_filename(filename)
         if filename.include?("dev") then ["dev-dependencies"]
-        else ["dependencies"]
+        else
+          ["dependencies"]
         end
-      end
-
-      def included_in_pipenv_deps?(dep_name)
-        return false unless pipfile
-
-        pipenv_dependencies.dependencies.map(&:name).include?(dep_name)
-      end
-
-      def included_in_poetry_deps?(dep_name)
-        return false unless using_poetry?
-
-        poetry_dependencies.dependencies.map(&:name).include?(dep_name)
       end
 
       def blocking_marker?(dep)
@@ -132,20 +129,9 @@ module Dependabot
 
       def setup_file_dependencies
         @setup_file_dependencies ||=
-          SetupFileParser.
-          new(dependency_files: dependency_files).
-          dependency_set
-      end
-
-      def lockfile_for_pip_compile_file?(filename)
-        return false unless pip_compile_files.any?
-        return false unless filename.end_with?(".txt")
-
-        file = dependency_files.find { |f| f.name == filename }
-        return true if file&.content&.match?(output_file_regex(filename))
-
-        basename = filename.gsub(/\.txt$/, "")
-        pip_compile_files.any? { |f| f.name == basename + ".in" }
+          SetupFileParser
+          .new(dependency_files: dependency_files)
+          .dependency_set
       end
 
       def parsed_requirement_files
@@ -153,7 +139,7 @@ module Dependabot
           write_temporary_dependency_files
 
           requirements = SharedHelpers.run_helper_subprocess(
-            command: "pyenv exec python #{NativeHelpers.python_helper_path}",
+            command: "pyenv exec python3 #{NativeHelpers.python_helper_path}",
             function: "parse_requirements",
             args: [Dir.pwd]
           )
@@ -179,9 +165,9 @@ module Dependabot
       end
 
       def write_temporary_dependency_files
-        dependency_files.
-          reject { |f| f.name == ".python-version" }.
-          each do |file|
+        dependency_files
+          .reject { |f| f.name == ".python-version" }
+          .each do |file|
             path = file.name
             FileUtils.mkdir_p(Pathname.new(path).dirname)
             File.write(path, remove_imports(file))
@@ -191,10 +177,10 @@ module Dependabot
       def remove_imports(file)
         return file.content if file.path.end_with?(".tar.gz", ".whl", ".zip")
 
-        file.content.lines.
-          reject { |l| l.match?(/^['"]?(?<path>\..*?)(?=\[|#|'|"|$)/) }.
-          reject { |l| l.match?(/^(?:-e)\s+['"]?(?<path>.*?)(?=\[|#|'|"|$)/) }.
-          join
+        file.content.lines
+            .reject { |l| l.match?(/^['"]?(?<path>\..*?)(?=\[|#|'|"|$)/) }
+            .reject { |l| l.match?(/^(?:-e)\s+['"]?(?<path>.*?)(?=\[|#|'|"|$)/) }
+            .join
       end
 
       def normalised_name(name, extras = [])
@@ -220,25 +206,8 @@ module Dependabot
         @pipfile_lock ||= get_original_file("Pipfile.lock")
       end
 
-      def using_poetry?
-        return false unless pyproject
-        return true if poetry_lock || pyproject_lock
-
-        !TomlRB.parse(pyproject.content).dig("tool", "poetry").nil?
-      rescue TomlRB::ParseError, TomlRB::ValueOverwriteError
-        raise Dependabot::DependencyFileNotParseable, pyproject.path
-      end
-
-      def output_file_regex(filename)
-        "--output-file[=\s]+#{Regexp.escape(filename)}(?:\s|$)"
-      end
-
       def pyproject
         @pyproject ||= get_original_file("pyproject.toml")
-      end
-
-      def pyproject_lock
-        @pyproject_lock ||= get_original_file("pyproject.lock")
       end
 
       def poetry_lock
@@ -256,6 +225,10 @@ module Dependabot
       def pip_compile_files
         @pip_compile_files ||=
           dependency_files.select { |f| f.name.end_with?(".in") }
+      end
+
+      def pip_compile_file_matcher
+        @pip_compile_file_matcher ||= PipCompileFileMatcher.new(pip_compile_files)
       end
     end
   end

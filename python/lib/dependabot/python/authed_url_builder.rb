@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 module Dependabot
@@ -5,7 +6,7 @@ module Dependabot
     class AuthedUrlBuilder
       def self.authed_url(credential:)
         token = credential.fetch("token", nil)
-        url = credential.fetch("index-url")
+        url = credential.fetch("index-url", nil)
         return url unless token
 
         basic_auth_details =
@@ -13,7 +14,8 @@ module Dependabot
           elsif Base64.decode64(token).ascii_only? &&
                 Base64.decode64(token).include?(":")
             Base64.decode64(token)
-          else token
+          else
+            token
           end
 
         if basic_auth_details.include?(":")

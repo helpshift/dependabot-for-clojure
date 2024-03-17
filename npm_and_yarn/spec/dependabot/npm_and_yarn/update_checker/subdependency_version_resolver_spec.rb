@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -13,18 +14,19 @@ RSpec.describe namespace::SubdependencyVersionResolver do
       dependency_files: dependency_files,
       credentials: credentials,
       ignored_versions: ignored_versions,
-      latest_allowable_version: latest_allowable_version
+      latest_allowable_version: latest_allowable_version,
+      repo_contents_path: nil
     )
   end
 
   let(:latest_allowable_version) { dependency.version }
   let(:credentials) do
-    [{
+    [Dependabot::Credential.new({
       "type" => "git_source",
       "host" => "github.com",
       "username" => "x-access-token",
       "password" => "token"
-    }]
+    })]
   end
   let(:ignored_versions) { [] }
 
@@ -48,8 +50,8 @@ RSpec.describe namespace::SubdependencyVersionResolver do
       end
 
       it "raises a helpful error" do
-        expect { latest_resolvable_version }.
-          to raise_error("Not a subdependency!")
+        expect { latest_resolvable_version }
+          .to raise_error("Not a subdependency!")
       end
     end
 
@@ -88,7 +90,43 @@ RSpec.describe namespace::SubdependencyVersionResolver do
       it { is_expected.to eq(Gem::Version.new("5.7.4")) }
     end
 
-    context "with a package-lock.json" do
+    context "with a pnpm-lock.yaml" do
+      let(:dependency_files) { project_dependency_files("pnpm/no_lockfile_change") }
+
+      let(:dependency) do
+        Dependabot::Dependency.new(
+          name: "acorn",
+          version: "5.1.1",
+          requirements: [],
+          package_manager: "npm_and_yarn"
+        )
+      end
+      let(:latest_allowable_version) { "6.0.2" }
+
+      # NOTE: The latest vision is 6.0.2, but we can't reach it as other
+      # dependencies constrain us
+      it { is_expected.to eq(Gem::Version.new("5.7.4")) }
+    end
+
+    context "with a npm8 package-lock.json" do
+      let(:dependency_files) { project_dependency_files("npm8/subdependency_update") }
+
+      let(:dependency) do
+        Dependabot::Dependency.new(
+          name: "acorn",
+          version: "5.5.3",
+          requirements: [],
+          package_manager: "npm_and_yarn"
+        )
+      end
+      let(:latest_allowable_version) { "6.0.2" }
+
+      # NOTE: The latest vision is 6.0.2, but we can't reach it as other
+      # dependencies constrain us
+      it { is_expected.to eq(Gem::Version.new("5.7.4")) }
+    end
+
+    context "with a npm6 package-lock.json" do
       let(:dependency_files) { project_dependency_files("npm6/subdependency_update") }
 
       let(:dependency) do
@@ -104,37 +142,46 @@ RSpec.describe namespace::SubdependencyVersionResolver do
       # NOTE: The latest vision is 6.0.2, but we can't reach it as other
       # dependencies constrain us
       it { is_expected.to eq(Gem::Version.new("5.7.4")) }
+    end
 
-      context "when using npm5 lockfile" do
-        let(:dependency_files) { project_dependency_files("npm5/subdependency_update") }
+    context "with a npm5 package-lock.json" do
+      let(:dependency_files) { project_dependency_files("npm5/subdependency_update") }
 
-        # NOTE: npm5 lockfiles have exact version requires so can't easily
-        # update specific sub-dependencies to a new version, make sure we keep
-        # the same version
-        it { is_expected.to eq(Gem::Version.new("5.2.1")) }
+      let(:dependency) do
+        Dependabot::Dependency.new(
+          name: "acorn",
+          version: "5.5.3",
+          requirements: [],
+          package_manager: "npm_and_yarn"
+        )
       end
 
-      context "when sub-dependency is bundled" do
-        let(:dependency_files) { project_dependency_files("npm6/bundled_sub_dependency") }
+      # NOTE: npm5 lockfiles have exact version requires so can't easily
+      # update specific sub-dependencies to a new version, make sure we keep
+      # the same version
+      it { is_expected.to eq(Gem::Version.new("5.2.1")) }
+    end
 
-        let(:dependency_name) { "tar" }
-        let(:version) { "4.4.10" }
-        let(:previous_version) { "4.4.1" }
-        let(:requirements) { [] }
-        let(:previous_requirements) { [] }
+    context "when sub-dependency is bundled" do
+      let(:dependency_files) { project_dependency_files("npm6/bundled_sub_dependency") }
 
-        let(:dependency) do
-          Dependabot::Dependency.new(
-            name: "tar",
-            version: "4.4.1",
-            requirements: [],
-            package_manager: "npm_and_yarn",
-            subdependency_metadata: [{ npm_bundled: true }]
-          )
-        end
+      let(:dependency_name) { "tar" }
+      let(:version) { "4.4.10" }
+      let(:previous_version) { "4.4.1" }
+      let(:requirements) { [] }
+      let(:previous_requirements) { [] }
 
-        it { is_expected.to eq(nil) }
+      let(:dependency) do
+        Dependabot::Dependency.new(
+          name: "tar",
+          version: "4.4.1",
+          requirements: [],
+          package_manager: "npm_and_yarn",
+          subdependency_metadata: [{ npm_bundled: true }]
+        )
       end
+
+      it { is_expected.to eq(nil) }
     end
 
     context "with a yarn.lock and a package-lock.json" do

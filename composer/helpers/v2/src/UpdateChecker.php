@@ -6,9 +6,9 @@ namespace Dependabot\Composer;
 
 use Composer\DependencyResolver\Request;
 use Composer\Factory;
+use Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory;
 use Composer\Installer;
 use Composer\Package\PackageInterface;
-use Composer\Util\Filesystem;
 
 final class UpdateChecker
 {
@@ -48,35 +48,29 @@ final class UpdateChecker
             $io->loadConfiguration($config);
         }
 
-        $installationManager = new DependabotInstallationManager($composer->getLoop(), $io);
-
-        $fs = new Filesystem(null);
-        $binaryInstaller = new Installer\BinaryInstaller($io, rtrim($composer->getConfig()->get('bin-dir'), '/'), $composer->getConfig()->get('bin-compat'), $fs);
-
-        $installationManager->addInstaller(new Installer\LibraryInstaller($io, $composer, null, $fs, $binaryInstaller));
-        $installationManager->addInstaller(new Installer\PluginInstaller($io, $composer, $fs, $binaryInstaller));
-        $installationManager->addInstaller(new Installer\MetapackageInstaller($io));
-
         $install = new Installer(
             $io,
             $config,
-            $composer->getPackage(),
+            $composer->getPackage(),  // @phpstan-ignore-line
             $composer->getDownloadManager(),
             $composer->getRepositoryManager(),
             $composer->getLocker(),
-            $installationManager,
+            $composer->getInstallationManager(),
             $composer->getEventDispatcher(),
             $composer->getAutoloadGenerator()
         );
 
+        $composer->getEventDispatcher()->setRunScripts(false);
+
         // For all potential options, see UpdateCommand in composer
         $install
             ->setUpdate(true)
+            ->setInstall(false)
             ->setDevMode(true)
             ->setUpdateAllowTransitiveDependencies(Request::UPDATE_LISTED_WITH_TRANSITIVE_DEPS)
             ->setDumpAutoloader(false)
-            ->setRunScripts(false)
-            ->setIgnorePlatformRequirements(false);
+            ->setPlatformRequirementFilter(PlatformRequirementFilterFactory::fromBoolOrList(false))
+            ->setAudit(false);
 
         // if no lock is present, we do not do a partial update as
         // this is not supported by the Installer
@@ -86,7 +80,7 @@ final class UpdateChecker
 
         $install->run();
 
-        $installedPackages = $installationManager->getInstalledPackages();
+        $installedPackages = $composer->getLocker()->getLockedRepository(true)->getPackages();
 
         $updatedPackage = current(array_filter($installedPackages, static function (PackageInterface $package) use ($dependencyName): bool {
             return $package->getName() === $dependencyName;
@@ -94,7 +88,7 @@ final class UpdateChecker
 
         // We found the package in the list of updated packages. Return its version.
         if ($updatedPackage instanceof PackageInterface) {
-            return preg_replace('/^([v])/', '', $updatedPackage->getPrettyVersion());
+            return ltrim($updatedPackage->getPrettyVersion(), 'v');
         }
 
         // We didn't find the package in the list of updated packages. Check if
@@ -116,14 +110,14 @@ final class UpdateChecker
         // Similarly, check if the package was provided by any other package.
         foreach ($composer->getPackage()->getProvides() as $link) {
             if ($link->getTarget() === $dependencyName) {
-                return preg_replace('/^([v])/', '', $link->getPrettyConstraint());
+                return ltrim($link->getPrettyConstraint(), 'v');
             }
         }
 
         foreach ($installedPackages as $package) {
             foreach ($package->getProvides() as $link) {
                 if ($link->getTarget() === $dependencyName) {
-                    return preg_replace('/^([v])/', '', $link->getPrettyConstraint());
+                    return ltrim($link->getPrettyConstraint(), 'v');
                 }
             }
         }

@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 ####################################################################
@@ -109,18 +110,19 @@ module Dependabot
 
       # Updates the version in a "~>" constraint to allow the given version
       def update_twiddle_version(req_string)
-        old_version = requirement_class.new(req_string).
-                      requirements.first.last
+        old_version = requirement_class.new(req_string)
+                                       .requirements.first.last
         updated_version = at_same_precision(latest_version, old_version)
         req_string.sub(old_version.to_s, updated_version)
       end
 
       def update_range(req_string)
         requirement_class.new(req_string).requirements.flat_map do |r|
-          next r if r.satisfied_by?(latest_version)
+          ruby_req = requirement_class.new(r.join(" "))
+          next ruby_req if ruby_req.satisfied_by?(latest_version)
 
-          case op = r.requirements.first.first
-          when "<", "<=" then [update_greatest_version(r, latest_version)]
+          case op = ruby_req.requirements.first.first
+          when "<", "<=" then [update_greatest_version(ruby_req, latest_version)]
           when "!=" then []
           else raise "Unexpected operation for unsatisfied req: #{op}"
           end
@@ -129,16 +131,16 @@ module Dependabot
 
       def at_same_precision(new_version, old_version)
         release_precision =
-          old_version.to_s.split(".").select { |i| i.match?(/^\d+$/) }.count
+          old_version.to_s.split(".").count { |i| i.match?(/^\d+$/) }
         prerelease_precision =
           old_version.to_s.split(".").count - release_precision
 
         new_release =
           new_version.to_s.split(".").first(release_precision)
         new_prerelease =
-          new_version.to_s.split(".").
-          drop_while { |i| i.match?(/^\d+$/) }.
-          first([prerelease_precision, 1].max)
+          new_version.to_s.split(".")
+                     .drop_while { |i| i.match?(/^\d+$/) }
+                     .first([prerelease_precision, 1].max)
 
         [*new_release, *new_prerelease].join(".")
       end
@@ -161,7 +163,8 @@ module Dependabot
             version_to_be_permitted.segments[index]
           elsif index == index_to_update
             version_to_be_permitted.segments[index] + 1
-          else 0
+          else
+            0
           end
         end
 

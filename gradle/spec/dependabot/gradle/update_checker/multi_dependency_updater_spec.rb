@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -60,23 +61,23 @@ RSpec.describe namespace::MultiDependencyUpdater do
   #############################
 
   let(:maven_central_metadata_url_gradle_plugin) do
-    "https://repo.maven.apache.org/maven2/"\
-    "org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml"
+    "https://repo.maven.apache.org/maven2/" \
+      "org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml"
   end
 
   let(:maven_central_metadata_url_stdlib) do
-    "https://repo.maven.apache.org/maven2/"\
-    "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
+    "https://repo.maven.apache.org/maven2/" \
+      "org/jetbrains/kotlin/kotlin-stdlib-jre8/maven-metadata.xml"
   end
 
   before do
-    stub_request(:get, maven_central_metadata_url_gradle_plugin).
-      to_return(
+    stub_request(:get, maven_central_metadata_url_gradle_plugin)
+      .to_return(
         status: 200,
         body: fixture("maven_central_metadata", "with_release.xml")
       )
-    stub_request(:get, maven_central_metadata_url_stdlib).
-      to_return(
+    stub_request(:get, maven_central_metadata_url_stdlib)
+      .to_return(
         status: 200,
         body: fixture("maven_central_metadata", "with_release.xml")
       )
@@ -87,31 +88,31 @@ RSpec.describe namespace::MultiDependencyUpdater do
   ########################
 
   let(:jcenter_metadata_url_protoc) do
-    "https://jcenter.bintray.com/"\
-    "com/google/protobuf/protoc/maven-metadata.xml"
+    "https://jcenter.bintray.com/" \
+      "com/google/protobuf/protoc/maven-metadata.xml"
   end
   let(:jcenter_metadata_url_protobuf_java) do
-    "https://jcenter.bintray.com/"\
-    "com/google/protobuf/protobuf-java/maven-metadata.xml"
+    "https://jcenter.bintray.com/" \
+      "com/google/protobuf/protobuf-java/maven-metadata.xml"
   end
   let(:jcenter_metadata_url_protobuf_java_util) do
-    "https://jcenter.bintray.com/"\
-    "com/google/protobuf/protobuf-java-util/maven-metadata.xml"
+    "https://jcenter.bintray.com/" \
+      "com/google/protobuf/protobuf-java-util/maven-metadata.xml"
   end
 
   before do
-    stub_request(:get, jcenter_metadata_url_protoc).
-      to_return(
+    stub_request(:get, jcenter_metadata_url_protoc)
+      .to_return(
         status: 200,
         body: fixture("maven_central_metadata", "with_release.xml")
       )
-    stub_request(:get, jcenter_metadata_url_protobuf_java).
-      to_return(
+    stub_request(:get, jcenter_metadata_url_protobuf_java)
+      .to_return(
         status: 200,
         body: fixture("maven_central_metadata", "with_release.xml")
       )
-    stub_request(:get, jcenter_metadata_url_protobuf_java_util).
-      to_return(
+    stub_request(:get, jcenter_metadata_url_protobuf_java_util)
+      .to_return(
         status: 200,
         body: fixture("maven_central_metadata", "with_release.xml")
       )
@@ -131,8 +132,8 @@ RSpec.describe namespace::MultiDependencyUpdater do
       context "when one dependency is missing the target version" do
         before do
           body = fixture("maven_central_metadata", "missing_latest.xml")
-          stub_request(:get, maven_central_metadata_url_stdlib).
-            to_return(
+          stub_request(:get, maven_central_metadata_url_stdlib)
+            .to_return(
               status: 200,
               body: body
             )
@@ -169,8 +170,8 @@ RSpec.describe namespace::MultiDependencyUpdater do
       context "when one dependency is missing the target version" do
         before do
           body = fixture("maven_central_metadata", "missing_latest.xml")
-          stub_request(:get, jcenter_metadata_url_protobuf_java_util).
-            to_return(
+          stub_request(:get, jcenter_metadata_url_protobuf_java_util)
+            .to_return(
               status: 200,
               body: body
             )
@@ -240,8 +241,8 @@ RSpec.describe namespace::MultiDependencyUpdater do
     context "when one dependency is missing the target version" do
       before do
         body = fixture("maven_central_metadata", "missing_latest.xml")
-        stub_request(:get, maven_central_metadata_url_stdlib).
-          to_return(status: 200, body: body)
+        stub_request(:get, maven_central_metadata_url_stdlib)
+          .to_return(status: 200, body: body)
       end
 
       specify { expect { updated_dependencies }.to raise_error(/not possible/) }

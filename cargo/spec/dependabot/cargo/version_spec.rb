@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -28,6 +29,16 @@ RSpec.describe Dependabot::Cargo::Version do
     context "with a build version" do
       let(:version_string) { "1.0.0-pre1+something" }
       it { is_expected.to eq "1.0.0-pre1+something" }
+    end
+
+    context "with a build version with hyphens" do
+      let(:version_string) { "0.9.0+wasi-snapshot-preview1" }
+      it { is_expected.to eq "0.9.0+wasi-snapshot-preview1" }
+    end
+
+    context "with a build version with hyphens in multiple identifiers" do
+      let(:version_string) { "0.9.0+wasi-snapshot1.alpha-preview" }
+      it { is_expected.to eq "0.9.0+wasi-snapshot1.alpha-preview" }
     end
 
     context "with a blank version" do
@@ -64,7 +75,8 @@ RSpec.describe Dependabot::Cargo::Version do
   describe "#correct?" do
     subject { described_class.correct?(version_string) }
 
-    valid = %w(1.0.0 1.0.0.pre1 1.0.0-pre1 1.0.0-pre1+something)
+    valid = %w(1.0.0 1.0.0.pre1 1.0.0-pre1 1.0.0-pre1+something 0.9.0+wasi-snapshot-preview1
+               0.9.0+wasi-snapshot1.alpha-preview)
     valid.each do |version|
       context "with version #{version}" do
         let(:version_string) { version }

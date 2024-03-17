@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -14,9 +15,10 @@ RSpec.describe Dependabot::DependabotError do
 
     it { is_expected.to eq("some error") }
 
+    let(:tmp) { Dependabot::Utils::BUMP_TMP_DIR_PATH }
     context "with dependabot temp path" do
       let(:message) do
-        "tmp/dependabot_20201218-14100-y0d218/path error"
+        "#{tmp}/dependabot_20201218-14100-y0d218/path error"
       end
 
       it { is_expected.to eq("dependabot_tmp_dir/path error") }
@@ -24,13 +26,13 @@ RSpec.describe Dependabot::DependabotError do
 
     context "with dependabot temp path" do
       let(:message) do
-        "Error (/Users/x/code/dependabot-core/cargo/tmp/dependabot_20201218-14100-y0d218) "\
-        "failed to load https://github.com/dependabot"
+        "Error (/Users/x/code/dependabot-core/cargo/#{tmp}/dependabot_20201218-14100-y0d218) " \
+          "failed to load https://github.com/dependabot"
       end
 
       it do
         is_expected.to eq(
-          "Error (/Users/x/code/dependabot-core/cargo/dependabot_tmp_dir) "\
+          "Error (/Users/x/code/dependabot-core/cargo/dependabot_tmp_dir) " \
           "failed to load https://github.com/dependabot"
         )
       end
@@ -66,6 +68,17 @@ RSpec.describe Dependabot::DependabotError do
       end
 
       it { is_expected.to eq("git://github.com error") }
+    end
+
+    context "with multiple uri's include @ in their fragment, but no auth" do
+      let(:message) do
+        <<~MESSAGE.strip
+          https://github.com/EspressoSystems/tide-disco.git#tide-disco@0.4.1
+          https://github.com/EspressoSystems/tide-disco.git#tide-disco@0.4.1
+        MESSAGE
+      end
+
+      it { is_expected.to eq(message) }
     end
   end
 end
@@ -109,7 +122,7 @@ RSpec.describe Dependabot::PrivateSourceAuthenticationFailure do
 
     it do
       is_expected.to eq(
-        "The following source could not be reached as it requires authentication (and any provided details were "\
+        "The following source could not be reached as it requires authentication (and any provided details were " \
         "invalid or lacked the required permissions): source"
       )
     end
@@ -121,7 +134,7 @@ RSpec.describe Dependabot::PrivateSourceAuthenticationFailure do
 
       it do
         is_expected.to eq(
-          "The following source could not be reached as it requires authentication (and any provided details were "\
+          "The following source could not be reached as it requires authentication (and any provided details were " \
           "invalid or lacked the required permissions): npm.fury.io/<redacted>"
         )
       end
@@ -194,7 +207,7 @@ RSpec.describe Dependabot::GitDependenciesNotReachable do
 
     it do
       is_expected.to eq(
-        "The following git URLs could not be retrieved: "\
+        "The following git URLs could not be retrieved: " \
         "https://bitbucket.org/gocardless/"
       )
     end

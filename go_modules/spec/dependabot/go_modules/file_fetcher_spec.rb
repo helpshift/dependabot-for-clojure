@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -30,16 +31,22 @@ RSpec.describe Dependabot::GoModules::FileFetcher do
   end
 
   it "fetches the go.mod and go.sum" do
-    expect(file_fetcher_instance.files.map(&:name)).
-      to include("go.mod", "go.sum")
+    expect(file_fetcher_instance.files.map(&:name))
+      .to include("go.mod", "go.sum")
+  end
+
+  it "provides the Go modules version" do
+    expect(file_fetcher_instance.ecosystem_versions).to eq({
+      package_managers: { "gomod" => "unknown" }
+    })
   end
 
   context "without a go.mod" do
     let(:branch) { "without-go-mod" }
 
     it "raises a helpful error" do
-      expect { file_fetcher_instance.files }.
-        to raise_error(Dependabot::DependencyFileNotFound)
+      expect { file_fetcher_instance.files }
+        .to raise_error(Dependabot::DependencyFileNotFound)
     end
   end
 
@@ -55,19 +62,25 @@ RSpec.describe Dependabot::GoModules::FileFetcher do
     let(:directory) { "/missing" }
 
     it "raises a helpful error" do
-      expect { file_fetcher_instance.files }.
-        to raise_error(Dependabot::DependencyFileNotFound)
+      expect { file_fetcher_instance.files }
+        .to raise_error(Dependabot::DependencyFileNotFound)
     end
   end
 
-  context "for an application" do
-    let(:repo) { "dependabot-fixtures/go-modules-app" }
+  context "when dependencies are git submodules" do
+    let(:repo) { "dependabot-fixtures/go-modules-app-with-git-submodules" }
+    let(:branch) { "main" }
+    let(:submodule_contents_path) { File.join(repo_contents_path, "examplelib") }
 
-    it "fetches the main.go, too" do
-      expect(file_fetcher_instance.files.map(&:name)).
-        to include("main.go")
-      expect(file_fetcher_instance.files.
-        find { |f| f.name == "main.go" }.type).to eq("package_main")
+    it "clones them" do
+      expect { file_fetcher_instance.files }.to_not raise_error
+      expect(`ls -1 #{submodule_contents_path}`.split).to include("go.mod")
+    end
+
+    it "provides the Go modules version" do
+      expect(file_fetcher_instance.ecosystem_versions).to eq({
+        package_managers: { "gomod" => "1.19" }
+      })
     end
   end
 end

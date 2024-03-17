@@ -1,7 +1,9 @@
+# typed: false
 # frozen_string_literal: true
 
 require "octokit"
 require "spec_helper"
+require "dependabot/credential"
 require "dependabot/dependency"
 require "dependabot/bundler/metadata_finder"
 require_common_spec "metadata_finders/shared_examples_for_metadata_finders"
@@ -32,6 +34,20 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
     }]
   end
   let(:dependency_name) { "business" }
+
+  before do
+    stub_request(:get, "https://example.com/status").to_return(
+      status: 200,
+      body: "Not GHES",
+      headers: {}
+    )
+
+    stub_request(:get, "https://www.rubydoc.info/status").to_return(
+      status: 200,
+      body: "Not GHES",
+      headers: {}
+    )
+  end
 
   describe "#source_url" do
     subject(:source_url) { finder.source_url }
@@ -67,9 +83,9 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
       end
       let(:rubygems_response) { fixture("ruby", "rubygems_response.json") }
       before do
-        stub_request(:get, rubygems_api_url).
-          with(headers: { "Authorization" => "Basic U0VDUkVUX0NPREVTOg==" }).
-          to_return(status: 200, body: rubygems_response)
+        stub_request(:get, rubygems_api_url)
+          .with(headers: { "Authorization" => "Basic U0VDUkVUX0NPREVTOg==" })
+          .to_return(status: 200, body: rubygems_response)
       end
 
       it { is_expected.to eq("https://github.com/gocardless/business") }
@@ -88,6 +104,11 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
             },
             {
               "type" => "rubygems_server",
+              "host" => "gems.greysteil.com.evil.com",
+              "token" => "secret:token"
+            },
+            {
+              "type" => "rubygems_server",
               "host" => "gems.greysteil.com",
               "token" => "secret:token"
             }
@@ -97,12 +118,66 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
           "https://gems.greysteil.com/api/v1/gems/business.json"
         end
         before do
-          stub_request(:get, rubygems_api_url).
-            with(headers: { "Authorization" => "Basic c2VjcmV0OnRva2Vu" }).
-            to_return(status: 200, body: rubygems_response)
+          stub_request(:get, rubygems_api_url)
+            .with(headers: { "Authorization" => "Basic c2VjcmV0OnRva2Vu" })
+            .to_return(status: 200, body: rubygems_response)
         end
 
         it { is_expected.to eq("https://github.com/gocardless/business") }
+      end
+
+      context "with a replaces-base credential" do
+        before do
+          stub_request(:get, "https://gems.example.com/api/v1/gems/business.json")
+            .to_return(
+              status: 200,
+              body: fixture("ruby", "rubygems_response.json")
+            )
+        end
+
+        let(:source) do
+          { type: "rubygems", url: "https://gems.example.com/" }
+        end
+        let(:credentials) do
+          [
+            Dependabot::Credential.new({
+              "type" => "rubygems_server",
+              "host" => "gems.greysteil.com",
+              "replaces-base" => true
+            })
+          ]
+        end
+
+        it "prefers the source URL still" do
+          expect(finder.source_url)
+            .to eq("https://github.com/gocardless/business")
+          expect(WebMock)
+            .to have_requested(
+              :get,
+              "https://gems.example.com/api/v1/gems/business.json"
+            )
+          expect(WebMock).to_not have_requested(:get, rubygems_gemspec_url)
+        end
+
+        context "but with no source" do
+          let(:source) { nil }
+
+          before do
+            stub_request(:get, "https://gems.greysteil.com/api/v1/gems/business.json")
+              .to_return(
+                status: 200,
+                body: fixture("ruby", "rubygems_response.json")
+              )
+          end
+
+          it "uses the replaces-base URL" do
+            expect(finder.source_url)
+              .to eq("https://github.com/gocardless/business")
+            expect(WebMock)
+              .to have_requested(:get, "https://gems.greysteil.com/api/v1/gems/business.json")
+            expect(WebMock).to_not have_requested(:get, rubygems_gemspec_url)
+          end
+        end
       end
 
       context "without a source" do
@@ -111,18 +186,18 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
         end
 
         before do
-          stub_request(:get, "https://rubygems.org/api/v1/gems/business.json").
-            to_return(
+          stub_request(:get, "https://rubygems.org/api/v1/gems/business.json")
+            .to_return(
               status: 200,
               body: fixture("ruby", "rubygems_response.json")
             )
         end
 
         it "hits Rubygems to augment the details" do
-          expect(finder.source_url).
-            to eq("https://github.com/gocardless/business")
-          expect(WebMock).
-            to have_requested(
+          expect(finder.source_url)
+            .to eq("https://github.com/gocardless/business")
+          expect(WebMock)
+            .to have_requested(
               :get,
               "https://rubygems.org/api/v1/gems/business.json"
             )
@@ -136,19 +211,19 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
               "https://rubygems.org/api/v1/gems/business.json"
             ).to_return(
               status: 200,
-              body: fixture("ruby", "rubygems_response.json").
-                    gsub("1.5.0", "1.5.1")
+              body: fixture("ruby", "rubygems_response.json")
+                    .gsub("1.5.0", "1.5.1")
             )
 
-            stub_request(:get, rubygems_gemspec_url).
-              to_return(status: 200, body: gemspec_response)
+            stub_request(:get, rubygems_gemspec_url)
+              .to_return(status: 200, body: gemspec_response)
           end
 
           it "falls back to getting them gemspec" do
-            expect(finder.source_url).
-              to eq("https://github.com/gocardless/business")
-            expect(WebMock).
-              to have_requested(
+            expect(finder.source_url)
+              .to eq("https://github.com/gocardless/business")
+            expect(WebMock)
+              .to have_requested(
                 :get,
                 "https://rubygems.org/api/v1/gems/business.json"
               )
@@ -159,15 +234,15 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
 
       context "but the response is a 400" do
         before do
-          stub_request(:get, rubygems_api_url).
-            to_return(status: 400, body: "bad request")
-          stub_request(:get, rubygems_gemspec_url).
-            to_return(status: 200, body: gemspec_response)
+          stub_request(:get, rubygems_api_url)
+            .to_return(status: 400, body: "bad request")
+          stub_request(:get, rubygems_gemspec_url)
+            .to_return(status: 200, body: gemspec_response)
         end
 
         it "falls back to getting them gemspec" do
-          expect(finder.source_url).
-            to eq("https://github.com/gocardless/business")
+          expect(finder.source_url)
+            .to eq("https://github.com/gocardless/business")
           expect(WebMock).to have_requested(:get, rubygems_gemspec_url)
         end
       end
@@ -250,8 +325,8 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
       end
       let(:rubygems_response_code) { 200 }
       before do
-        stub_request(:get, rubygems_api_url).
-          to_return(status: rubygems_response_code, body: rubygems_response)
+        stub_request(:get, rubygems_api_url)
+          .to_return(status: rubygems_response_code, body: rubygems_response)
       end
 
       context "when there is a github link in the rubygems response" do
@@ -347,8 +422,8 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
     let(:rubygems_response_code) { 200 }
 
     before do
-      stub_request(:get, rubygems_api_url).
-        to_return(status: rubygems_response_code, body: rubygems_response)
+      stub_request(:get, rubygems_api_url)
+        .to_return(status: rubygems_response_code, body: rubygems_response)
     end
 
     context "when there is a homepage link in the rubygems response" do
@@ -371,8 +446,8 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
       end
       let(:rubygems_response_code) { 200 }
       before do
-        stub_request(:get, rubygems_api_url).
-          to_return(status: rubygems_response_code, body: rubygems_response)
+        stub_request(:get, rubygems_api_url)
+          .to_return(status: rubygems_response_code, body: rubygems_response)
       end
 
       context "when there is a changelog link in the rubygems response" do
@@ -382,7 +457,7 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
 
         it "gets the URL from the changelog_uri" do
           expect(suggested_changelog_url).to eq(
-            "https://github.com/rails/rails/blob/v5.2.2/"\
+            "https://github.com/rails/rails/blob/v5.2.2/" \
             "activerecord/CHANGELOG.md"
           )
         end
@@ -426,10 +501,10 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
 
       context "but the response is a 400" do
         before do
-          stub_request(:get, rubygems_api_url).
-            to_return(status: 400, body: "bad request")
-          stub_request(:get, rubygems_gemspec_url).
-            to_return(status: 200, body: gemspec_response)
+          stub_request(:get, rubygems_api_url)
+            .to_return(status: 400, body: "bad request")
+          stub_request(:get, rubygems_gemspec_url)
+            .to_return(status: 200, body: gemspec_response)
         end
 
         it "falls back to getting them gemspec" do

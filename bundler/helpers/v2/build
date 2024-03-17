@@ -1,25 +1,30 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
-install_dir=$1
-if [ -z "$install_dir" ]; then
-  echo "usage: $0 INSTALL_DIR"
-  exit 1
-fi
+helpers_dir=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-helpers_dir="$(dirname "${BASH_SOURCE[0]}")"
-cp -r \
-  "$helpers_dir/lib" \
-  "$helpers_dir/monkey_patches" \
-  "$helpers_dir/run.rb" \
-  "$helpers_dir/Gemfile" \
-  "$install_dir"
+if [ -z "$DEPENDABOT_NATIVE_HELPERS_PATH" ]; then
+  install_dir="$helpers_dir"
+else
+  install_dir="$DEPENDABOT_NATIVE_HELPERS_PATH/bundler/v2"
+  mkdir -p "$install_dir"
+
+  cp -r \
+    "$helpers_dir/lib" \
+    "$helpers_dir/monkey_patches" \
+    "$helpers_dir/run.rb" \
+    "$install_dir"
+fi
 
 cd "$install_dir"
 
-# NOTE: Sets `BUNDLED WITH` to match the installed v2 version in Gemfile.lock
-# forcing specs and native helpers to run with the same version
-BUNDLER_VERSION=2.2.26 bundle config set --local path ".bundle"
-BUNDLER_VERSION=2.2.26 bundle config set --local without "test"
-BUNDLER_VERSION=2.2.26 bundle install
+default_version=$(ruby -rbundler -e'print Bundler::VERSION')
+
+export GEM_HOME=$install_dir/.bundle
+
+gem install bundler -v "$default_version" --no-document
+
+if [ -z "$DEPENDABOT_NATIVE_HELPERS_PATH" ]; then
+  bundle install
+fi

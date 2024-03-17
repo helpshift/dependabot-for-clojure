@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "dependabot/shared_helpers"
@@ -14,6 +15,7 @@ module Dependabot
                      credentials:, options: {})
         super
 
+        @goprivate = options.fetch(:goprivate, "*")
         use_repo_contents_stub if repo_contents_path.nil?
       end
 
@@ -27,7 +29,7 @@ module Dependabot
       def updated_dependency_files
         updated_files = []
 
-        if go_mod && file_changed?(go_mod)
+        if go_mod && dependency_changed?(go_mod)
           updated_files <<
             updated_file(
               file: go_mod,
@@ -42,8 +44,8 @@ module Dependabot
               )
           end
 
-          vendor_updater.updated_vendor_cache_files(base_directory: directory).
-            each do |file|
+          vendor_updater.updated_vendor_cache_files(base_directory: directory)
+                        .each do |file|
             updated_files << file
           end
         end
@@ -54,6 +56,11 @@ module Dependabot
       end
 
       private
+
+      def dependency_changed?(go_mod)
+        # file_changed? only checks for changed requirements. Need to check for indirect dep version changes too.
+        file_changed?(go_mod) || dependencies.any? { |dep| dep.previous_version != dep.version }
+      end
 
       def check_required_files
         return if go_mod
@@ -69,7 +76,7 @@ module Dependabot
           dependency_files.each do |file|
             path = File.join(@repo_contents_path, directory, file.name)
             path = Pathname.new(path).expand_path
-            FileUtils.mkdir_p(path.dirname) unless Dir.exist?(path.dirname)
+            FileUtils.mkdir_p(path.dirname)
             File.write(path, file.content)
           end
 
@@ -77,6 +84,7 @@ module Dependabot
           SharedHelpers.with_git_configured(credentials: []) do
             `git config --global user.email "no-reply@github.com"`
             `git config --global user.name "Dependabot"`
+            `git config --global init.defaultBranch "placeholder-default-branch"`
             `git init .`
             `git add .`
             `git commit -m'fake repo_contents_path'`
@@ -93,7 +101,7 @@ module Dependabot
       end
 
       def directory
-        dependency_files.first.directory
+        dependency_files.first&.directory
       end
 
       def vendor_dir
@@ -111,10 +119,11 @@ module Dependabot
         @file_updater ||=
           GoModUpdater.new(
             dependencies: dependencies,
+            dependency_files: dependency_files,
             credentials: credentials,
             repo_contents_path: repo_contents_path,
             directory: directory,
-            options: { tidy: tidy?, vendor: vendor? }
+            options: { tidy: tidy?, vendor: vendor?, goprivate: @goprivate }
           )
       end
 
@@ -129,5 +138,5 @@ module Dependabot
   end
 end
 
-Dependabot::FileUpdaters.
-  register("go_modules", Dependabot::GoModules::FileUpdater)
+Dependabot::FileUpdaters
+  .register("go_modules", Dependabot::GoModules::FileUpdater)

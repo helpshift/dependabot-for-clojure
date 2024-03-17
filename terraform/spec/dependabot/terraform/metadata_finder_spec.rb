@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -87,16 +88,14 @@ RSpec.describe Dependabot::Terraform::MetadataFinder do
       end
 
       let(:registry_url) do
-        "https://registry.terraform.io/v1/modules/hashicorp/consul/aws/0.3.8"
-      end
-      let(:registry_response) do
-        fixture("registry_responses", "hashicorp_consul_aws_0.3.8.json")
+        "https://registry.terraform.io/v1/modules/hashicorp/consul/aws/0.3.8/download"
       end
       before do
-        stub_request(:get, "https://registry.terraform.io/.well-known/terraform.json").
-          to_return(status: 200, body: { "modules.v1": "/v1/modules/" }.to_json)
-        stub_request(:get, registry_url).
-          to_return(status: 200, body: registry_response)
+        stub_request(:get, "https://registry.terraform.io/.well-known/terraform.json")
+          .to_return(status: 200, body: { "modules.v1": "/v1/modules/" }.to_json)
+        stub_request(:get, registry_url)
+          .to_return(status: 204, body: "",
+                     headers: { "X-Terraform-Get": "git::https://github.com/hashicorp/terraform-aws-consul" })
       end
 
       it do
@@ -135,8 +134,8 @@ RSpec.describe Dependabot::Terraform::MetadataFinder do
       end
 
       before do
-        stub_request(:get, "https://registry.terraform.io/.well-known/terraform.json").
-          to_return(status: 200, body: { "providers.v1": "/v1/providers/" }.to_json)
+        stub_request(:get, "https://registry.terraform.io/.well-known/terraform.json")
+          .to_return(status: 200, body: { "providers.v1": "/v1/providers/" }.to_json)
       end
 
       it do

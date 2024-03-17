@@ -1,3 +1,4 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
@@ -45,16 +46,16 @@ RSpec.describe Dependabot::Python::FileUpdater do
     )
   end
   let(:credentials) do
-    [{
+    [Dependabot::Credential.new({
       "type" => "git_source",
       "host" => "github.com",
       "username" => "x-access-token",
       "password" => "token"
-    }]
+    })]
   end
   let(:tmp_path) { Dependabot::Utils::BUMP_TMP_DIR_PATH }
 
-  before { Dir.mkdir(tmp_path) unless Dir.exist?(tmp_path) }
+  before { FileUtils.mkdir_p(tmp_path) }
 
   describe "#updated_dependency_files" do
     subject(:updated_files) { updater.updated_dependency_files }
@@ -91,13 +92,13 @@ RSpec.describe Dependabot::Python::FileUpdater do
       let(:pipfile) do
         Dependabot::DependencyFile.new(
           name: "Pipfile",
-          content: fixture("pipfiles", "version_not_specified")
+          content: fixture("pipfile_files", "version_not_specified")
         )
       end
       let(:lockfile) do
         Dependabot::DependencyFile.new(
           name: "Pipfile.lock",
-          content: fixture("lockfiles", "version_not_specified.lock")
+          content: fixture("pipfile_files", "version_not_specified.lock")
         )
       end
 
@@ -123,8 +124,8 @@ RSpec.describe Dependabot::Python::FileUpdater do
       end
 
       it "delegates to PipfileFileUpdater" do
-        expect(described_class::PipfileFileUpdater).
-          to receive(:new).and_call_original
+        expect(described_class::PipfileFileUpdater)
+          .to receive(:new).and_call_original
         expect { updated_files }.to_not(change { Dir.entries(tmp_path) })
         updated_files.each { |f| expect(f).to be_a(Dependabot::DependencyFile) }
       end
@@ -135,7 +136,7 @@ RSpec.describe Dependabot::Python::FileUpdater do
       let(:pipfile) do
         Dependabot::DependencyFile.new(
           name: "Pipfile",
-          content: fixture("pipfiles", "exact_version")
+          content: fixture("pipfile_files", "exact_version")
         )
       end
 
@@ -161,14 +162,102 @@ RSpec.describe Dependabot::Python::FileUpdater do
       end
 
       it "delegates to PipfileFileUpdater" do
-        expect(described_class::PipfileFileUpdater).
-          to receive(:new).and_call_original
+        expect(described_class::PipfileFileUpdater)
+          .to receive(:new).and_call_original
         expect { updated_files }.to_not(change { Dir.entries(tmp_path) })
         updated_files.each { |f| expect(f).to be_a(Dependabot::DependencyFile) }
       end
     end
 
-    context "with a pyproject.toml and pyproject.lock" do
+    context "with multiple manifests declaring the same dependency" do
+      let(:dependency_files) { [pyproject, requirements] }
+      let(:pyproject) do
+        Dependabot::DependencyFile.new(
+          name: "pyproject.toml",
+          content: fixture("pyproject_files", "pytest.toml")
+        )
+      end
+      let(:requirements_fixture_name) { "version_specified.txt" }
+
+      let(:dependency) do
+        Dependabot::Dependency.new(
+          name: "pytest",
+          version: "3.5.0",
+          previous_version: "3.4.0",
+          package_manager: "pip",
+          requirements: [{
+            requirement: "3.5.0",
+            file: "pyproject.toml",
+            groups: ["dependencies"],
+            source: nil
+          }, {
+            requirement: "==3.5.0",
+            file: "requirements.txt",
+            groups: ["dependencies"],
+            source: nil
+          }],
+          previous_requirements: [{
+            requirement: "3.4.0",
+            file: "pyproject.toml",
+            groups: ["dependencies"],
+            source: nil
+          }, {
+            requirement: "==3.4.0",
+            file: "requirements.txt",
+            groups: ["dependencies"],
+            source: nil
+          }]
+        )
+      end
+
+      # Perhaps ideally we'd replace both, but this is where we're at right now.
+      # See https://github.com/dependabot/dependabot-core/pull/4969
+      it "replaces one of the outdated dependencies" do
+        expect(updated_files.length).to eq(1)
+        expect(updated_files[0].content).to include('pytest = "3.5.0"')
+      end
+    end
+
+    context "with a pyproject.toml with pep621 dependencies" do
+      let(:dependency_files) { [pyproject] }
+      let(:pyproject) do
+        Dependabot::DependencyFile.new(
+          name: "pyproject.toml",
+          content:
+            fixture("pyproject_files", "standard_python.toml")
+        )
+      end
+
+      let(:dependency) do
+        Dependabot::Dependency.new(
+          name: "ansys-templates",
+          version: "0.5.0",
+          previous_version: "0.3.0",
+          package_manager: "pip",
+          requirements: [{
+            requirement: "==0.5.0",
+            file: "pyproject.toml",
+            source: nil,
+            groups: ["default"]
+          }],
+          previous_requirements: [{
+            requirement: "==0.3.0",
+            file: "pyproject.toml",
+            source: nil,
+            groups: ["default"]
+          }]
+        )
+      end
+
+      it "delegates to RequirementFileUpdater" do
+        expect(described_class::RequirementFileUpdater)
+          .to receive(:new).and_call_original
+        expect { updated_files }.to_not(change { Dir.entries(tmp_path) })
+        updated_files.each { |f| expect(f).to be_a(Dependabot::DependencyFile) }
+      end
+    end
+
+    context "with a pyproject.toml and poetry.lock" do
       let(:dependency_files) { [pyproject, lockfile] }
       let(:pyproject) do
         Dependabot::DependencyFile.new(
@@ -179,9 +268,9 @@ RSpec.describe Dependabot::Python::FileUpdater do
       end
       let(:lockfile) do
         Dependabot::DependencyFile.new(
-          name: "pyproject.lock",
+          name: "poetry.lock",
           content:
-            fixture("pyproject_locks", "version_not_specified.lock")
+            fixture("poetry_locks", "version_not_specified.lock")
         )
       end
 
@@ -207,8 +296,8 @@ RSpec.describe Dependabot::Python::FileUpdater do
       end
 
       it "delegates to PoetryFileUpdater" do
-        expect(described_class::PoetryFileUpdater).
-          to receive(:new).and_call_original
+        expect(described_class::PoetryFileUpdater)
+          .to receive(:new).and_call_original
         expect { updated_files }.to_not(change { Dir.entries(tmp_path) })
         updated_files.each { |f| expect(f).to be_a(Dependabot::DependencyFile) }
       end
@@ -251,13 +340,13 @@ RSpec.describe Dependabot::Python::FileUpdater do
       it "delegates to PipCompileFileUpdater" do
         dummy_updater =
           instance_double(described_class::PipCompileFileUpdater)
-        allow(described_class::PipCompileFileUpdater).to receive(:new).
-          and_return(dummy_updater)
-        expect(dummy_updater).
-          to receive(:updated_dependency_files).
-          and_return([OpenStruct.new(name: "updated files")])
-        expect(updater.updated_dependency_files).
-          to eq([OpenStruct.new(name: "updated files")])
+        allow(described_class::PipCompileFileUpdater).to receive(:new)
+          .and_return(dummy_updater)
+        expect(dummy_updater)
+          .to receive(:updated_dependency_files)
+          .and_return([OpenStruct.new(name: "updated files")])
+        expect(updater.updated_dependency_files)
+          .to eq([OpenStruct.new(name: "updated files")])
       end
 
       context "and a requirements.txt that specifies a subdependency" do
@@ -281,13 +370,13 @@ RSpec.describe Dependabot::Python::FileUpdater do
         it "delegates to PipCompileFileUpdater" do
           dummy_updater =
             instance_double(described_class::PipCompileFileUpdater)
-          allow(described_class::PipCompileFileUpdater).to receive(:new).
-            and_return(dummy_updater)
-          expect(dummy_updater).
-            to receive(:updated_dependency_files).
-            and_return([OpenStruct.new(name: "updated files")])
-          expect(updater.updated_dependency_files).
-            to eq([OpenStruct.new(name: "updated files")])
+          allow(described_class::PipCompileFileUpdater).to receive(:new)
+            .and_return(dummy_updater)
+          expect(dummy_updater)
+            .to receive(:updated_dependency_files)
+            .and_return([OpenStruct.new(name: "updated files")])
+          expect(updater.updated_dependency_files)
+            .to eq([OpenStruct.new(name: "updated files")])
         end
       end
     end
@@ -296,8 +385,8 @@ RSpec.describe Dependabot::Python::FileUpdater do
       let(:dependency_files) { [requirements] }
 
       it "delegates to RequirementFileUpdater" do
-        expect(described_class::RequirementFileUpdater).
-          to receive(:new).and_call_original
+        expect(described_class::RequirementFileUpdater)
+          .to receive(:new).and_call_original
         expect { updated_files }.to_not(change { Dir.entries(tmp_path) })
         updated_files.each { |f| expect(f).to be_a(Dependabot::DependencyFile) }
       end

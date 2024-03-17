@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 module Functions
@@ -16,8 +17,6 @@ module Functions
     #   * version [String] the version of the blocking dependency
     #   * requirement [String] the requirement on the target_dependency
     def conflicting_dependencies
-      Bundler.settings.set_command_option("only_update_to_newer_versions", true)
-
       parent_specs.flat_map do |parent_spec|
         top_level_specs_for(parent_spec).map do |top_level|
           dependency = parent_spec.dependencies.find { |bd| bd.name == dependency_name }
@@ -63,7 +62,7 @@ module Functions
       if spec.name == top_level.name
         "#{spec.name} (#{spec.version}) requires #{dependency_name} (#{dependency.requirement})"
       else
-        "#{top_level.name} (#{top_level.version}) requires #{dependency_name} "\
+        "#{top_level.name} (#{top_level.version}) requires #{dependency_name} " \
           "(#{dependency.requirement}) via #{spec.name} (#{spec.version})"
       end
     end

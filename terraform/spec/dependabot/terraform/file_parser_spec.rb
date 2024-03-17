@@ -1,9 +1,11 @@
+# typed: false
 # frozen_string_literal: true
 
 require "spec_helper"
 require "dependabot/dependency_file"
 require "dependabot/source"
 require "dependabot/terraform/file_parser"
+require "dependabot/terraform/version"
 require_common_spec "file_parsers/shared_examples_for_file_parsers"
 
 RSpec.describe Dependabot::Terraform::FileParser do
@@ -168,7 +170,7 @@ RSpec.describe Dependabot::Terraform::FileParser do
     end
 
     context "with a pessimistic constraint and a lockfile" do
-      let(:files) { project_dependency_files("pessimistic_constraint_lock_file") }
+      let(:files) { project_dependency_files("pessimistic_constraint_lockfile") }
 
       it "parses the lockfile" do
         expect(subject.length).to eq(1)
@@ -191,12 +193,13 @@ RSpec.describe Dependabot::Terraform::FileParser do
     end
 
     context "with git sources" do
+      let(:version_class) { Dependabot::Terraform::Version }
       let(:files) { project_dependency_files("git_tags_011") }
       specify { expect(subject.length).to eq(6) }
       specify { expect(subject).to all(be_a(Dependabot::Dependency)) }
 
       it "has the right details for the dependency (which uses git:: with a tag)" do
-        expect(subject[5].name).to eq("origin_label")
+        expect(subject[5].name).to eq("origin_label::github::cloudposse/terraform-null-label::tags/0.3.7")
         expect(subject[5].version).to eq("0.3.7")
         expect(subject[5].requirements).to match_array([{
           requirement: nil,
@@ -212,7 +215,7 @@ RSpec.describe Dependabot::Terraform::FileParser do
       end
 
       it "has the right details for the dependency (which uses github.com with a tag)" do
-        expect(subject[4].name).to eq("logs")
+        expect(subject[4].name).to eq("logs::github::cloudposse/terraform-log-storage::tags/0.2.2")
         expect(subject[4].version).to eq("0.2.2")
         expect(subject[4].requirements).to match_array([{
           requirement: nil,
@@ -228,7 +231,7 @@ RSpec.describe Dependabot::Terraform::FileParser do
       end
 
       it "has the right details for the dependency (which uses bitbucket.org with no tag)" do
-        expect(subject[0].name).to eq("distribution_label")
+        expect(subject[0].name).to eq("distribution_label::bitbucket::cloudposse/terraform-null-label")
         expect(subject[0].version).to be_nil
         expect(subject[0].requirements).to eq([{
           requirement: nil,
@@ -244,7 +247,7 @@ RSpec.describe Dependabot::Terraform::FileParser do
       end
 
       it "has the right details for the dependency (which has a subdirectory and a tag)" do
-        expect(subject[1].name).to eq("dns")
+        expect(subject[1].name).to eq("dns::github::cloudposse/terraform-aws-route53-al::tags/0.2.5")
         expect(subject[1].version).to eq("0.2.5")
         expect(subject[1].requirements).to eq([{
           requirement: nil,
@@ -260,7 +263,7 @@ RSpec.describe Dependabot::Terraform::FileParser do
       end
 
       it "has the right details for the dependency" do
-        expect(subject[2].name).to eq("duplicate_label")
+        expect(subject[2].name).to eq("duplicate_label::github::cloudposse/terraform-null-label::tags/0.3.7")
         expect(subject[2].version).to eq("0.3.7")
         expect(subject[2].requirements).to eq([{
           requirement: nil,
@@ -276,7 +279,9 @@ RSpec.describe Dependabot::Terraform::FileParser do
       end
 
       it "has the right details for the dependency (which uses git@github.com)" do
-        expect(subject[3].name).to eq("github_ssh_without_protocol")
+        expect(subject[3].name).to eq(
+          "github_ssh_without_protocol::github::cloudposse/terraform-aws-jenkins::tags/0.4.0"
+        )
         expect(subject[3].version).to eq("0.4.0")
         expect(subject[3].requirements).to eq([{
           requirement: nil,
@@ -298,8 +303,8 @@ RSpec.describe Dependabot::Terraform::FileParser do
       it "raises a helpful error message" do
         expect { subject }.to raise_error(Dependabot::DependencyFileNotParseable) do |error|
           expect(error.message).to eq(
-            "This terraform provider syntax is now deprecated.\n"\
-            "See https://www.terraform.io/docs/language/providers/requirements.html "\
+            "This terraform provider syntax is now deprecated.\n" \
+            "See https://www.terraform.io/docs/language/providers/requirements.html " \
             "for the new Terraform v0.13+ provider syntax."
           )
         end
@@ -330,7 +335,9 @@ RSpec.describe Dependabot::Terraform::FileParser do
         specify { expect(subject).to all(be_a(Dependabot::Dependency)) }
 
         it "has the right details for the first dependency (which uses git:: with a tag)" do
-          dependency = subject.find { |x| x.name == "origin_label" }
+          dependency = subject.find do |x|
+            x.name == "origin_label::github::cloudposse/terraform-null-label::tags/0.3.7"
+          end
           expect(dependency).to_not be_nil
           expect(dependency.version).to eq("0.3.7")
           expect(dependency.requirements).to match_array([{
@@ -347,7 +354,9 @@ RSpec.describe Dependabot::Terraform::FileParser do
         end
 
         it "has the right details for the second dependency (which uses github.com with a tag)" do
-          dependency = subject.find { |x| x.name == "logs" }
+          dependency = subject.find do |x|
+            x.name == "logs::github::cloudposse/terraform-aws-s3-log-storage::tags/0.2.2"
+          end
           expect(dependency).to_not be_nil
           expect(dependency.version).to eq("0.2.2")
           expect(dependency.requirements).to match_array([{
@@ -364,7 +373,7 @@ RSpec.describe Dependabot::Terraform::FileParser do
         end
 
         it "has the right details for the third dependency (which uses bitbucket.org with no tag)" do
-          dependency = subject.find { |x| x.name == "distribution_label" }
+          dependency = subject.find { |x| x.name == "distribution_label::bitbucket::cloudposse/terraform-null-label" }
           expect(dependency).to_not be_nil
           expect(dependency.version).to be_nil
           expect(dependency.requirements).to eq([{
@@ -381,7 +390,9 @@ RSpec.describe Dependabot::Terraform::FileParser do
         end
 
         it "has the right details the fourth dependency (which has a subdirectory and a tag)" do
-          dependency = subject.find { |x| x.name == "dns" }
+          dependency = subject.find do |x|
+            x.name == "dns::github::cloudposse/terraform-aws-route53-cluster-zone::tags/0.2.5"
+          end
           expect(dependency).to_not be_nil
           expect(dependency.version).to eq("0.2.5")
           expect(dependency.requirements).to eq([{
@@ -398,7 +409,9 @@ RSpec.describe Dependabot::Terraform::FileParser do
         end
 
         it "has the right details the fifth dependency)" do
-          dependency = subject.find { |x| x.name == "duplicate_label" }
+          dependency = subject.find do |x|
+            x.name == "duplicate_label::github::cloudposse/terraform-null-label::tags/0.3.7"
+          end
           expect(dependency).to_not be_nil
           expect(dependency.version).to eq("0.3.7")
           expect(dependency.requirements).to eq([{
@@ -415,7 +428,9 @@ RSpec.describe Dependabot::Terraform::FileParser do
         end
 
         it "has the right details for the sixth dependency (which uses git@github.com)" do
-          dependency = subject.find { |x| x.name == "github_ssh_without_protocol" }
+          dependency = subject.find do |x|
+            x.name == "github_ssh_without_protocol::github::cloudposse/terraform-aws-jenkins::tags/0.4.0"
+          end
           expect(dependency).to_not be_nil
           expect(dependency.version).to eq("0.4.0")
           expect(dependency.requirements).to eq([{
@@ -425,6 +440,205 @@ RSpec.describe Dependabot::Terraform::FileParser do
             source: {
               type: "git",
               url: "git@github.com:cloudposse/terraform-aws-jenkins.git",
+              ref: "tags/0.4.0",
+              branch: nil
+            }
+          }])
+        end
+      end
+
+      before do
+        stub_request(:get, "https://unknown-git-repo-example.com/status").to_return(
+          status: 200,
+          body: "Not GHES",
+          headers: {}
+        )
+      end
+
+      context "with relative path" do
+        let(:files) { project_dependency_files("git_tags_013") }
+        specify { expect(subject.length).to eq(8) }
+        specify { expect(subject).to all(be_a(Dependabot::Dependency)) }
+
+        it "has the right details for the child_module_one child_label git dependency (uses git@github.com)" do
+          dependency = subject.find { |x| x.name == "child::github::cloudposse/terraform-aws-jenkins::tags/0.4.0" }
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to eq("0.4.0")
+          expect(dependency.requirements).to match_array([{
+            requirement: nil,
+            groups: [],
+            file: "child_module_one/main.tf",
+            source: {
+              type: "git",
+              url: "git@github.com:cloudposse/terraform-aws-jenkins.git",
+              branch: nil,
+              ref: "tags/0.4.0"
+            }
+          }])
+        end
+
+        it "has the right details for the child_module_two child_label git dependency (uses github.com with a tag)" do
+          dependency = subject.find do |x|
+            x.name == "child::github::cloudposse/terraform-aws-s3-log-storage::tags/0.2.2"
+          end
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to eq("0.2.2")
+          expect(dependency.requirements).to match_array([{
+            requirement: nil,
+            groups: [],
+            file: "child_module_two/main.tf",
+            source: {
+              type: "git",
+              url: "https://github.com/cloudposse/terraform-aws-s3-log-storage.git",
+              branch: nil,
+              ref: "tags/0.2.2"
+            }
+          }])
+        end
+
+        it "has the right details for the child_module_one distribution_label duplicate git repo different provider" do
+          dependency = subject.find { |x| x.name == "distribution_label::github::cloudposse/terraform-null-label" }
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to be_nil
+          expect(dependency.requirements).to match_array([{
+            requirement: nil,
+            groups: [],
+            file: "child_module_one/main.tf",
+            source: {
+              type: "git",
+              url: "https://github.com/cloudposse/terraform-null-label.git",
+              branch: nil,
+              ref: nil
+            }
+          }])
+        end
+
+        it "has the right details for the child_module_two distribution_label duplicate git repo different provider" do
+          dependency = subject.find { |x| x.name == "distribution_label::bitbucket::cloudposse/terraform-null-label" }
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to be_nil
+          expect(dependency.requirements).to match_array([{
+            requirement: nil,
+            groups: [],
+            file: "child_module_two/main.tf",
+            source: {
+              type: "git",
+              url: "https://bitbucket.org/cloudposse/terraform-null-label.git",
+              branch: nil,
+              ref: nil
+            }
+          }])
+        end
+
+        it "has the right details for the dns_dup with duplicate git repo" do
+          dependency = subject.find do |x|
+            x.name == "dns_dup::github::cloudposse/terraform-aws-route53-cluster-zone::tags/0.2.5"
+          end
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to eq("0.2.5")
+          expect(dependency.requirements).to match_array([{
+            requirement: nil,
+            groups: [],
+            file: "main.tf",
+            source: {
+              type: "git",
+              url: "https://github.com/cloudposse/terraform-aws-route53-cluster-zone.git",
+              branch: nil,
+              ref: "tags/0.2.5"
+            }
+          }])
+        end
+
+        it "has the right details for the dns with child module duplicate and duplicate git repo" do
+          dependency = subject.find do |x|
+            x.name == "dns::github::cloudposse/terraform-aws-route53-cluster-zone::tags/0.2.5"
+          end
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to eq("0.2.5")
+          expect(dependency.requirements).to match_array([
+            {
+              requirement: nil,
+              groups: [],
+              file: "child_module_two/main.tf",
+              source: {
+                type: "git",
+                url: "https://github.com/cloudposse/terraform-aws-route53-cluster-zone.git",
+                branch: nil,
+                ref: "tags/0.2.5"
+              }
+            },
+            {
+              requirement: nil,
+              groups: [],
+              file: "main.tf",
+              source: {
+                type: "git",
+                url: "https://github.com/cloudposse/terraform-aws-route53-cluster-zone.git",
+                branch: nil,
+                ref: "tags/0.2.5"
+              }
+            }
+          ])
+        end
+
+        it "has the right details for the codecommit git repo" do
+          dependency = subject.find do |x|
+            x.name == "codecommit_repo::codecommit::test-repo::0.10.0"
+          end
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to eq("0.10.0")
+          expect(dependency.requirements).to match_array([{
+            requirement: nil,
+            groups: [],
+            file: "main.tf",
+            source: {
+              type: "git",
+              url: "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/test-repo",
+              branch: nil,
+              ref: "0.10.0"
+            }
+          }])
+        end
+
+        it "has the right details for the unknown git repo example" do
+          dependency = subject.find do |x|
+            x.name.include? "unknown_repo::git_provider::repo_name/git_repo("
+          end
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to eq("1.0.0")
+          expect(dependency.requirements).to match_array([{
+            requirement: nil,
+            groups: [],
+            file: "main.tf",
+            source: {
+              type: "git",
+              url: "https://unknown-git-repo-example.com/reponame/test",
+              branch: nil,
+              ref: "1.0.0"
+            }
+          }])
+        end
+      end
+
+      context "with git@xxx.yy sources" do
+        let(:files) { project_dependency_files("git_protocol") }
+
+        specify { expect(subject.length).to eq(1) }
+        specify { expect(subject).to all(be_a(Dependabot::Dependency)) }
+
+        it "has the right details for the first dependency (which uses git@gitlab.com)" do
+          dependency = subject.find do |x|
+            x.name == "gitlab_ssh_without_protocol::gitlab::cloudposse/terraform-aws-jenkins::tags/0.4.0"
+          end
+          expect(dependency).to_not be_nil
+          expect(dependency.version).to eq("0.4.0")
+          expect(dependency.requirements).to eq([{
+            requirement: nil,
+            groups: [],
+            file: "main.tf",
+            source: {
+              type: "git",
+              url: "git@gitlab.com:cloudposse/terraform-aws-jenkins.git",
               ref: "tags/0.4.0",
               branch: nil
             }
@@ -659,13 +873,134 @@ RSpec.describe Dependabot::Terraform::FileParser do
       end
     end
 
+    context "with a private module with directory suffix" do
+      let(:files) { project_dependency_files("private_module_with_dir_suffix") }
+      its(:length) { is_expected.to eq(1) }
+
+      describe "default registry with version" do
+        subject(:dependency) { dependencies.find { |d| d.name == "org/name/provider" } }
+        let(:expected_requirements) do
+          [{
+            requirement: "1.2.3",
+            groups: [],
+            file: "main.tf",
+            source: {
+              type: "registry",
+              registry_hostname: "registry.example.com",
+              module_identifier: "org/name/provider"
+            }
+          }]
+        end
+
+        it "has the right details" do
+          expect(dependency).to be_a(Dependabot::Dependency)
+          expect(dependency.name).to eq("org/name/provider")
+          expect(dependency.version).to eq("1.2.3")
+          expect(dependency.requirements).to eq(expected_requirements)
+        end
+      end
+    end
+
     context "with a private module proxy that can't be reached", vcr: true do
+      before do
+        artifactory_repo_url = "http://artifactory.dependabot.com/artifactory/tf-modules/azurerm"
+
+        stub_request(:get, "#{artifactory_repo_url}/terraform-azurerm-nsg-rules.v1.1.0.tar.gz?terraform-get=1")
+          .and_return(status: 401)
+      end
+
       let(:files) { project_dependency_files("private_module_proxy") }
 
       it "raises an error" do
         expect { subject }.to raise_error(Dependabot::PrivateSourceAuthenticationFailure) do |boom|
           expect(boom.source).to eq("artifactory.dependabot.com")
         end
+      end
+    end
+  end
+
+  let(:file_parser) do
+    described_class.new(
+      dependency_files: files,
+      source: source
+    )
+  end
+
+  let(:files) { project_dependency_files("registry") }
+  let(:source) { Dependabot::Source.new(provider: "github", repo: "gocardless/bump", directory: "/") }
+
+  describe "#source_type" do
+    subject { file_parser.send(:source_type, source_string) }
+
+    context "when the source type is known" do
+      let(:source_string) { "github.com/org/repo" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:github)
+      end
+    end
+
+    context "when the source type is a registry" do
+      let(:source_string) { "registry.terraform.io/hashicorp/aws" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:registry)
+      end
+    end
+
+    context "when the source type is an HTTP archive" do
+      let(:source_string) { "https://example.com/archive.zip?ref=v1.0.0" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:http_archive)
+      end
+    end
+
+    context "when the source type is an interpolation" do
+      let(:source_string) { "${var.source}" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:interpolation)
+      end
+    end
+
+    context "when the source type is an interpolation at the end" do
+      let(:source_string) { "git::https://github.com/username/repo.git//path/to/${var.module_name}" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:interpolation)
+      end
+    end
+
+    context "when the source type is an interpolation at the start" do
+      let(:source_string) { "${var.repo_url}/username/repo.git" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:interpolation)
+      end
+    end
+
+    context "when the source type is an interpolation type with multiple" do
+      let(:source_string) { "git::https://github.com/${var.username}/${var.repo}//path/to/${var.module_name}" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:interpolation)
+      end
+    end
+
+    context "when the source type is a compound interpolation" do
+      let(:source_string) { "test/${var.map[${var.key}']" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:interpolation)
+      end
+    end
+
+    context "when the source type is unknown" do
+      let(:source_string) { "unknown_source" }
+
+      it "returns the correct source type" do
+        expect(subject).to eq(:registry)
       end
     end
   end

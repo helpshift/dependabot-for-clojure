@@ -1,5 +1,7 @@
+# typed: true
 # frozen_string_literal: true
 
+require "toml-rb"
 require "dependabot/file_updaters"
 require "dependabot/file_updaters/base"
 require "dependabot/shared_helpers"
@@ -48,9 +50,9 @@ module Dependabot
       # rubocop:disable Metrics/PerceivedComplexity
       def resolver_type
         reqs = dependencies.flat_map(&:requirements)
-        changed_reqs = reqs.zip(dependencies.flat_map(&:previous_requirements)).
-                       reject { |(new_req, old_req)| new_req == old_req }.
-                       map(&:first)
+        changed_reqs = reqs.zip(dependencies.flat_map(&:previous_requirements))
+                           .reject { |(new_req, old_req)| new_req == old_req }
+                           .map(&:first)
         changed_req_files = changed_reqs.map { |r| r.fetch(:file) }
 
         # If there are no requirements then this is a sub-dependency. It
@@ -60,8 +62,14 @@ module Dependabot
 
         # Otherwise, this is a top-level dependency, and we can figure out
         # which resolver to use based on the filename of its requirements
-        return :pipfile if changed_req_files.any? { |f| f == "Pipfile" }
-        return :poetry if changed_req_files.any? { |f| f == "pyproject.toml" }
+        return :pipfile if changed_req_files.any?("Pipfile")
+
+        if changed_req_files.any?("pyproject.toml")
+          return :poetry if poetry_based?
+
+          return :requirements
+        end
+
         return :pip_compile if changed_req_files.any? { |f| f.end_with?(".in") }
 
         :requirements
@@ -70,7 +78,7 @@ module Dependabot
 
       def subdependency_resolver
         return :pipfile if pipfile_lock
-        return :poetry if poetry_lock || pyproject_lock
+        return :poetry if poetry_lock
         return :pip_compile if pip_compile_files.any?
 
         raise "Claimed to be a sub-dependency, but no lockfile exists!"
@@ -80,7 +88,8 @@ module Dependabot
         PipfileFileUpdater.new(
           dependencies: dependencies,
           dependency_files: dependency_files,
-          credentials: credentials
+          credentials: credentials,
+          repo_contents_path: repo_contents_path
         ).updated_dependency_files
       end
 
@@ -119,6 +128,12 @@ module Dependabot
         raise "Missing required files!"
       end
 
+      def poetry_based?
+        return false unless pyproject
+
+        !TomlRB.parse(pyproject.content).dig("tool", "poetry").nil?
+      end
+
       def pipfile
         @pipfile ||= get_original_file("Pipfile")
       end
@@ -129,10 +144,6 @@ module Dependabot
 
       def pyproject
         @pyproject ||= get_original_file("pyproject.toml")
-      end
-
-      def pyproject_lock
-        @pyproject_lock ||= get_original_file("pyproject.lock")
       end
 
       def poetry_lock

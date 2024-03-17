@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 require "nokogiri"
@@ -28,7 +29,7 @@ module Dependabot
             \s*#{Regexp.quote(node.content)}\s*
             </#{Regexp.quote(node.name)}>}xm
           property_text = node.to_s
-          if pom_to_update.content =~ property_re
+          if pom_to_update.content&.match?(property_re)
             updated_content = pom_to_update.content.sub(
               property_re,
               "<#{node.name}>#{updated_value}</#{node.name}>"
@@ -54,8 +55,8 @@ module Dependabot
 
         def property_value_finder
           @property_value_finder ||=
-            Maven::FileParser::PropertyValueFinder.
-            new(dependency_files: dependency_files)
+            Maven::FileParser::PropertyValueFinder
+            .new(dependency_files: dependency_files)
         end
 
         def update_file(file:, content:)
