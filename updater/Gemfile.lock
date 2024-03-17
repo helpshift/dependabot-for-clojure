@@ -89,6 +89,13 @@ PATH
       dependabot-common (= 0.247.0)
 
 PATH
+  remote: ../lein
+  specs:
+    dependabot-lein (0.247.0)
+      dependabot-common (= 0.247.0)
+      dependabot-maven (= 0.247.0)
+
+PATH
   remote: ../maven
   specs:
     dependabot-maven (0.247.0)
@@ -135,12 +142,6 @@ PATH
   remote: ../terraform
   specs:
     dependabot-terraform (0.247.0)
-      dependabot-common (= 0.247.0)
-
-PATH
-  remote: ../lein
-  specs:
-    dependabot-lein (0.247.0)
       dependabot-common (= 0.247.0)
 
 GEM
@@ -385,6 +386,7 @@ DEPENDENCIES
   dependabot-go_modules!
   dependabot-gradle!
   dependabot-hex!
+  dependabot-lein!
   dependabot-maven!
   dependabot-npm_and_yarn!
   dependabot-nuget!
@@ -393,7 +395,6 @@ DEPENDENCIES
   dependabot-silent!
   dependabot-swift!
   dependabot-terraform!
-  dependabot-lein!
   gpgme (~> 2.0)
   http (~> 5.1)
   octokit (= 6.1.1)
@@ -421,4 +422,4 @@ DEPENDENCIES
   webrick (>= 1.7)
 
 BUNDLED WITH
-   2.5.5
+   2.5.6
