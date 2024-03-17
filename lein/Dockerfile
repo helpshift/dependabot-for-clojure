@@ -1,6 +1,13 @@
 FROM ghcr.io/dependabot/dependabot-updater-core
 
 USER root
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y --no-install-recommends \
+    openssh-client \
+  && rm -rf /var/lib/apt/lists/*
+
+USER root
 # Install leiningen
 RUN apt-get update \
   && apt-get install -y openjdk-8-jre-headless \
@@ -16,7 +23,7 @@ ENV PATH="$PATH:/usr/local/lein/bin" \
 
 ENV DEPENDABOT_NATIVE_HELPERS_PATH="/opt"
 COPY --chown=dependabot:dependabot lein/helpers /opt/lein/helpers
-RUN bash /opt/lein/helpers/build
+RUN bash /opt/lein/helpers/build /opt/lein
 
 USER dependabot
 COPY --chown=dependabot:dependabot lein $DEPENDABOT_HOME/lein
