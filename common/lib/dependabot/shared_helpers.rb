@@ -337,7 +337,7 @@ module Dependabot
           "@#{cred.fetch('host')}"
 
         git_store_content += authenticated_url + "\n"
-        configure_git_to_use_https(cred.fetch("host"))
+        # configure_git_to_use_https(cred.fetch("host"))
       end
 
       # Save the file

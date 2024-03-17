@@ -792,13 +792,29 @@ module Dependabot
 
           submodule_cloning_failed = false
           retries = 0
+          puts "papp #{path}"
           begin
             SharedHelpers.run_shell_command(
               <<~CMD
-                git clone #{clone_options.string} #{source.url} #{path}
+                git clone #{clone_options.string} ssh://shivam.sharma@gerrit.helpshift.com:29418/#{source.repo}.git #{path}
               CMD
             )
-
+            SharedHelpers.run_shell_command(
+              <<~CMD
+               mkdir -p #{path}/hooks/ 
+               CMD
+            )
+            SharedHelpers.run_shell_command(
+              <<~CMD
+              curl -Lo #{path}/hooks/commit-msg https://gerrit.helpshift.com/tools/hooks/commit-msg
+             CMD
+           )
+           SharedHelpers.run_shell_command(
+              <<~CMD
+              chmod +x #{path}/hooks/commit-msg
+             CMD
+           )
+           
             @submodules = find_submodules(path)
           rescue SharedHelpers::HelperSubprocessFailed => e
             if GIT_RETRYABLE_ERRORS.any? { |error| error.match?(e.message) } && retries < 5

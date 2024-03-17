@@ -753,6 +753,8 @@ dependencies.each do |dep|
   updater = file_updater_for(deps_to_update)
   updated_files = updater.updated_dependency_files
 
+  puts $updated_files 
+
   updated_deps = updated_deps.reject do |d|
     next false if d.name == checker.dependency.name
     next true if d.top_level? && d.requirements == d.previous_requirements
@@ -769,7 +771,7 @@ dependencies.each do |dep|
     github_redirection_service: Dependabot::PullRequestCreator::DEFAULT_GITHUB_REDIRECTION_SERVICE
   ).message
 
-  puts " => #{msg.pr_name.downcase}"
+  puts " <=> #{msg.pr_name.downcase}"
 
   if $options[:write]
     
@@ -795,13 +797,13 @@ dependencies.each do |dep|
       if original_file
         show_diff(original_file, updated_file)
       else
-        puts "added #{updated_file.name}"
+        puts "-added #{updated_file.name}"
       end
     end
   end
 
 
-  if $options[:pull_request]
+   if $options[:pull_request]
     puts "Pull Request Title: #{msg.pr_name}"
     puts "--description--\n#{msg.pr_message}\n--/description--"
     puts "--commit--\n#{msg.commit_message}\n--/commit--"
@@ -814,7 +816,7 @@ dependencies.each do |dep|
        system("git commit -m '#{msg.commit_message}'")
        $files.map!{ |x| x.name == "project.clj" ? updated_files.first : x}
      end
-  end
+   end
 
 rescue StandardError => e
   error_details = Dependabot.updater_error_details(e)
@@ -824,10 +826,15 @@ rescue StandardError => e
        "#{error_details.fetch(:"error-detail")}"
 end
 
+Dependabot::SharedHelpers.run_shell_command(
+         <<~CMD
+         cp -rf /home/dependabot/rfc #{$repo_contents_path}
+             CMD
+       )
 puts "running rfc"
 #push the commits to gerrit via rfc
 Dir.chdir($repo_contents_path) do
-  #system("/home/dependabot/rfc feature/dependabot")
+  system("/home/dependabot/rfc feature/dependabot")
  system("git push origin HEAD:refs/for/feature/dependabot")
 end
 
