@@ -137,6 +137,12 @@ PATH
     dependabot-terraform (0.247.0)
       dependabot-common (= 0.247.0)
 
+PATH
+  remote: lein
+  specs:
+    dependabot-lein (0.247.0)
+      dependabot-common (= 0.247.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -383,6 +389,7 @@ DEPENDENCIES
   dependabot-silent!
   dependabot-swift!
   dependabot-terraform!
+  dependabot-lein!
   gpgme (~> 2.0)
   rake (~> 13)
   rspec-its (~> 1.3)
