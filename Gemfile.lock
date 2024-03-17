@@ -144,12 +144,6 @@ PATH
     dependabot-terraform (0.247.0)
       dependabot-common (= 0.247.0)
 
-PATH
-  remote: lein
-  specs:
-    dependabot-lein (0.247.0)
-      dependabot-common (= 0.247.0)
-
 GEM
   remote: https://rubygems.org/
   specs:
@@ -414,4 +408,4 @@ DEPENDENCIES
   webrick (>= 1.7)
 
 BUNDLED WITH
-   2.5.5
+   2.5.6
