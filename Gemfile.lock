@@ -89,6 +89,13 @@ PATH
       dependabot-common (= 0.247.0)
 
 PATH
+  remote: lein
+  specs:
+    dependabot-lein (0.247.0)
+      dependabot-common (= 0.247.0)
+      dependabot-maven (= 0.247.0)
+
+PATH
   remote: maven
   specs:
     dependabot-maven (0.247.0)
@@ -381,6 +388,7 @@ DEPENDENCIES
   dependabot-go_modules!
   dependabot-gradle!
   dependabot-hex!
+  dependabot-lein!
   dependabot-maven!
   dependabot-npm_and_yarn!
   dependabot-nuget!
@@ -389,7 +397,6 @@ DEPENDENCIES
   dependabot-silent!
   dependabot-swift!
   dependabot-terraform!
-  dependabot-lein!
   gpgme (~> 2.0)
   rake (~> 13)
   rspec-its (~> 1.3)
