@@ -18,8 +18,8 @@ if [ ! -d "$install_dir/bin" ]; then
 fi
 
 echo "copying jar running wrapper"
-cp $install_dir/helpers/bin/helper $install_dir/bin
+cp "$install_dir"/helpers/bin/helper $install_dir/bin
 
 echo "building $install_dir/bin/helper"
-cd $install_dir/helpers && lein uberjar
-cp -R $install_dir/helpers/target $install_dir
+cd "$install_dir"/helpers && lein uberjar
+cp -R "$install_dir"/helpers/target "$install_dir"
