@@ -798,28 +798,12 @@ module Dependabot
                 git clone #{clone_options.string} ssh://jenkins@gerrit.helpshift.com:29418/#{source.repo}.git #{path}
               CMD
             )
-          #   SharedHelpers.run_shell_command(
-          #     <<~CMD
-          #      mkdir -p #{path}/.git/hooks/ 
-          #      CMD
-          #   )
-          #   SharedHelpers.run_shell_command(
-          #     <<~CMD
-          #     curl -Lo #{path}/.git/hooks/commit-msg https://errit.helpshift.com/tools/hooks/commit-msg
-          #    CMD
-          #  )
-          #  SharedHelpers.run_shell_command(
-          #     <<~CMD
-          #     chmod +x #{path}/.git/hooks/commit-msg
-          #    CMD
-          #  )
            SharedHelpers.run_shell_command(
               <<~CMD
               cp -rf /home/dependabot/commit-msg #{path}/.git/hooks/
              CMD
            )
-           
-           
+
             @submodules = find_submodules(path)
           rescue SharedHelpers::HelperSubprocessFailed => e
             if GIT_RETRYABLE_ERRORS.any? { |error| error.match?(e.message) } && retries < 5
