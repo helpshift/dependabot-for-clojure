@@ -753,7 +753,7 @@ dependencies.each do |dep|
   updater = file_updater_for(deps_to_update)
   updated_files = updater.updated_dependency_files
 
-  puts $updated_files 
+  puts $updated_files
 
   updated_deps = updated_deps.reject do |d|
     next false if d.name == checker.dependency.name
@@ -774,7 +774,7 @@ dependencies.each do |dep|
   puts " <=> #{msg.pr_name.downcase}"
 
   if $options[:write]
-    
+
     updated_files.each do |updated_file|
       #path = File.join(dependency_files_cache_dir, updated_file.name)
       path = File.join($repo_contents_path, updated_file.name)
@@ -804,12 +804,13 @@ dependencies.each do |dep|
 
 
    if $options[:pull_request]
+    git_user = ENV.fetch("GIT_USER", "Jenkins")
+    git_email = ENV.fetch("GIT_EMAIL", "jenkins@helpshift.com")
     puts "Pull Request Title: #{msg.pr_name}"
     puts "--description--\n#{msg.pr_message}\n--/description--"
     puts "--commit--\n#{msg.commit_message}\n--/commit--"
-    system("git config --global user.email \"shivam.sharma@helpshift.com\"")
-    system("git config --global user.name \"shivam sharma\"")
-    system("cp -rf hk.sh tmp/voyager/")
+    system("git config --global user.email '#{git_email}' ")
+    system("git config --global user.name '#{git_user}' ")
      Dir.chdir($repo_contents_path) do
        Dependabot::SharedHelpers.run_shell_command(
          <<~CMD
@@ -818,15 +819,8 @@ dependencies.each do |dep|
        )
        system("git commit -m '#{msg.commit_message}'")
        Dependabot::SharedHelpers.run_shell_command(
-
-        #  "git rebase -f HEAD~1 feature/dependabot --exec 'git commit --amend --no-edit'"
         "git commit --amend --no-edit"
        )
-      # Dependabot::SharedHelpers.run_shell_command(
-      #    <<~CMD
-      #    bash hk.sh
-      #    CMD
-      #    )
        $files.map!{ |x| x.name == "project.clj" ? updated_files.first : x}
      end
    end
@@ -847,9 +841,6 @@ end
 puts "pushing the changes"
 #push the commits to gerrit via rfc
 Dir.chdir($repo_contents_path) do
-
-  # system 'git', 'rebase', '-f', 'HEAD~1', 'feature/dependabot', '--exec', 'git commit --amend --no-edit'
-  # system("/home/dependabot/rfc feature/dependabot")
  system("git push origin HEAD:refs/for/feature/dependabot")
 end
 
@@ -860,5 +851,3 @@ puts "🌍 Total requests made: '#{$network_trace_count}'"
 
 # rubocop:enable Metrics/BlockLength
 # rubocop:enable Style/GlobalVars
-
-

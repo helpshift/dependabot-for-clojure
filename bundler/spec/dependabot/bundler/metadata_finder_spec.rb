@@ -29,7 +29,7 @@ RSpec.describe Dependabot::Bundler::MetadataFinder do
     [{
       "type" => "git_source",
       "host" => "github.com",
-      "username" => ENV.fetch("LOCAL_GITHUB", "x-access-token"),
+      "username" => ENV.fetch("LOCAL_GITHUB_USER", "x-access-token"),
       "password" => ENV.fetch("LOCAL_GITHUB_ACCESS_TOKEN", nil)
     }]
   end

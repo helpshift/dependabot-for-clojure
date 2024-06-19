@@ -792,28 +792,27 @@ module Dependabot
 
           submodule_cloning_failed = false
           retries = 0
-          puts "papp #{path}"
           begin
             SharedHelpers.run_shell_command(
               <<~CMD
-                git clone #{clone_options.string} ssh://shivam.sharma@gerrit.helpshift.com:29418/#{source.repo}.git #{path}
+                git clone #{clone_options.string} ssh://jenkins@gerrit.helpshift.com:29418/#{source.repo}.git #{path}
               CMD
             )
-            SharedHelpers.run_shell_command(
-              <<~CMD
-               mkdir -p #{path}/.git/hooks/ 
-               CMD
-            )
-            SharedHelpers.run_shell_command(
-              <<~CMD
-              curl -Lo #{path}/.git/hooks/commit-msg https://errit.helpshift.com/tools/hooks/commit-msg
-             CMD
-           )
-           SharedHelpers.run_shell_command(
-              <<~CMD
-              chmod +x #{path}/.git/hooks/commit-msg
-             CMD
-           )
+          #   SharedHelpers.run_shell_command(
+          #     <<~CMD
+          #      mkdir -p #{path}/.git/hooks/ 
+          #      CMD
+          #   )
+          #   SharedHelpers.run_shell_command(
+          #     <<~CMD
+          #     curl -Lo #{path}/.git/hooks/commit-msg https://errit.helpshift.com/tools/hooks/commit-msg
+          #    CMD
+          #  )
+          #  SharedHelpers.run_shell_command(
+          #     <<~CMD
+          #     chmod +x #{path}/.git/hooks/commit-msg
+          #    CMD
+          #  )
            SharedHelpers.run_shell_command(
               <<~CMD
               cp -rf /home/dependabot/commit-msg #{path}/.git/hooks/

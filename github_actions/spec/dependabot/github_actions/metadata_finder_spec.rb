@@ -37,8 +37,8 @@ RSpec.describe Dependabot::GithubActions::MetadataFinder do
     [{
       "type" => "git_source",
       "host" => "github.com",
-      "username" => "iathmika",
-      "password" => "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"
+      "username" => ENV.fetch("LOCAL_GITHUB_USER", "x-access-token"),
+      "password" => ENV.fetch("LOCAL_GITHUB_ACCESS_TOKEN", nil)
     }]
   end
 
